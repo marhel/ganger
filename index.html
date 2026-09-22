@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gångertabellen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbfcf8;
+    --grid: #d3e2ef;
+    --margin: #e9a3a0;
+    --ink: #1f2a44;
+    --pencil: #5d6675;
+    --red: #c8322b;
+    --blue: #1d5fc4;
+    --panel: #ffffff;
+    --line: #c9d3de;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1a2130; --grid: #28344a; --margin: #6b3a3d;
+      --ink: #e8ecf4; --pencil: #a3adbd; --red: #f0736b; --blue: #7fb2ff;
+      --panel: #222b3c; --line: #3a4760;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1a2130; --grid: #28344a; --margin: #6b3a3d;
+    --ink: #e8ecf4; --pencil: #a3adbd; --red: #f0736b; --blue: #7fb2ff;
+    --panel: #222b3c; --line: #3a4760;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  main {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+    position: relative;
+  }
+  main::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0; left: 0.5rem;
+    width: 2px;
+    background: var(--margin);
+  }
+  h1 {
+    font-family: "Patrick Hand", "Comic Sans MS", cursive;
+    font-weight: 400;
+    font-size: 1.75rem;
+    margin: 0 0 0.25rem 1rem;
+  }
+  .lede { margin: 0 0 2rem 1rem; color: var(--pencil); max-width: 36rem; }
+
+  .problem {
+    font-family: "Patrick Hand", "Comic Sans MS", cursive;
+    font-size: clamp(4rem, 17vw, 8.5rem);
+    line-height: 1;
+    text-align: center;
+    margin: 1rem 0 0.5rem;
+    white-space: nowrap;
+    min-height: 1.1em;
+  }
+  .problem .answer { color: var(--blue); display: inline-block; min-width: 1.4em; text-align: left; }
+  .problem .answer.pending { color: var(--pencil); opacity: 0.45; }
+  .problem .answer.typed { color: var(--ink); opacity: 1; }
+  .problem .answer.shown { animation: pop 260ms ease-out; }
+  @keyframes pop { from { transform: scale(0.7) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .problem .answer.shown { animation: none; }
+    .bar i { transition: none !important; }
+  }
+
+  .bar {
+    height: 6px;
+    max-width: 20rem;
+    margin: 0 auto 1.25rem;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar i { display: block; height: 100%; width: 0; background: var(--blue); }
+
+  .yours {
+    text-align: center;
+    color: var(--pencil);
+    margin: -0.75rem 0 0.5rem;
+    min-height: 1.5em;
+    font-size: 0.95rem;
+  }
+  .yours s { font-family: "Patrick Hand", "Comic Sans MS", cursive; font-size: 1.3rem; }
+  .spoken {
+    text-align: center;
+    color: var(--pencil);
+    min-height: 3em;
+    margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .controls { display: flex; justify-content: center; gap: 0.75rem; margin-bottom: 2.5rem; flex-wrap: wrap; }
+  button {
+    font: inherit;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.8rem 2rem;
+    cursor: pointer;
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+  }
+  button.secondary { background: transparent; color: var(--ink); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+
+  details {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-left: 1rem;
+  }
+  summary { cursor: pointer; font-weight: 700; }
+  .settings { display: grid; gap: 1rem; margin-top: 1rem; }
+  label { display: grid; gap: 0.3rem; font-size: 0.95rem; }
+  .row { display: flex; align-items: center; gap: 0.75rem; }
+  .row input[type=range] { flex: 1; min-width: 0; }
+  .row output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+  select { font: inherit; padding: 0.4rem; border-radius: 6px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); max-width: 100%; }
+  .check { display: flex; gap: 0.5rem; align-items: center; }
+  .hint { color: var(--pencil); font-size: 0.85rem; margin: 0; }
+  .warn { color: var(--red); margin-left: 1rem; }
+  .voicetoggle { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: -1.5rem 0 2rem; }
+  details + details { margin-top: 1rem; }
+  .boxes-section { margin: 0 0 1.5rem 1rem; }
+  .boxes-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .boxes-head h2 { font-family: "Patrick Hand", "Comic Sans MS", cursive; font-weight: 400; font-size: 1.4rem; margin: 0; }
+  .boxes-scroll { overflow-x: auto; padding-bottom: 0.25rem; }
+  .boxes { display: flex; align-items: flex-end; gap: 0.5rem; min-height: 8.5rem; }
+  .box { display: grid; justify-items: center; gap: 0.2rem; min-width: 2.8rem; }
+  .box .count { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.95rem; }
+  .box .fill {
+    width: 2.4rem;
+    height: 100px;
+    border: 2px solid var(--ink);
+    border-top-width: 0;
+    border-radius: 0 0 6px 6px;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  .box .fill i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--pencil); opacity: 0.35; }
+  .box.now .fill { border-color: var(--blue); }
+  .box.now .fill i { background: var(--blue); opacity: 0.6; }
+  .box .label { font-size: 0.8rem; color: var(--pencil); font-variant-numeric: tabular-nums; }
+  .box.now .label { color: var(--blue); font-weight: 700; }
+  .boxes-empty { color: var(--pencil); margin: 0; }
+  button.box {
+    background: none; border: none; color: inherit; padding: 0.25rem 0.1rem;
+    border-radius: 8px; font: inherit; font-weight: 400; cursor: pointer;
+  }
+  button.box:hover .fill { background: var(--paper); }
+  dialog.boxdlg {
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--ink);
+    padding: 1rem 1.25rem 1.25rem;
+    width: min(34rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 4rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow: auto;
+  }
+  dialog.boxdlg::backdrop { background: rgb(0 0 0 / 0.35); }
+  .dlg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.25rem; }
+  .dlg-head h3 { font-family: "Patrick Hand", "Comic Sans MS", cursive; font-weight: 400; font-size: 1.5rem; margin: 0; }
+  .dlg-sub { color: var(--pencil); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.2rem, 1fr)); gap: 0.4rem; list-style: none; margin: 0; padding: 0; }
+  .facts li {
+    border: 1px solid var(--line); border-radius: 8px; padding: 0.35rem 0.4rem 0.3rem;
+    text-align: center; background: var(--paper);
+  }
+  .facts .q { font-family: "Patrick Hand", "Comic Sans MS", cursive; font-size: 1.25rem; line-height: 1.1; display: block; white-space: nowrap; }
+  .facts .s { font-size: 0.75rem; color: var(--pencil); }
+  .facts li.cur { border-color: var(--blue); }
+  .picker { display: grid; gap: 0.4rem; }
+  .picker-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+  .picker-head strong { font-size: 0.95rem; }
+  .link { background: none; border: none; color: var(--blue); padding: 0; font-weight: 400; font-size: 0.9rem; text-decoration: underline; border-radius: 4px; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr)); gap: 0.35rem; }
+  .chip {
+    padding: 0.45rem 0;
+    min-height: 2.6rem;
+    border-radius: 8px;
+    border: 2px solid var(--line);
+    background: var(--paper);
+    color: var(--pencil);
+    font-family: "Patrick Hand", "Comic Sans MS", cursive;
+    font-weight: 400;
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+  .chip[aria-pressed="true"] { border-color: var(--blue); background: var(--blue); color: var(--paper); }
+  .poolinfo { margin: 0; font-size: 0.9rem; color: var(--pencil); }
+  .poolinfo.empty { color: var(--red); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gångertabellen</h1>
+  <p class="lede">Appen läser upp ett tal, väntar och säger svaret. Skriv ditt svar med sifferknapparna innan det kommer.</p>
+
+  <div class="problem" aria-live="polite">
+    <span id="a">?</span> × <span id="b">?</span> = <span id="ans" class="answer pending">?</span>
+  </div>
+  <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+  <p class="yours" id="yours" aria-live="polite"></p>
+  <p class="spoken" id="spoken">Lyssna läser upp tal och svar. Starta tränar. Mellanslag pausar och fortsätter.</p>
+
+  <div class="controls">
+    <button id="listen" class="secondary">Lyssna</button>
+    <button id="toggle">Starta</button>
+    <button id="once" class="secondary">Ett tal</button>
+  </div>
+
+  <p class="voicetoggle">
+    <label class="check"><input type="checkbox" id="useVoice" checked> Läs upp med röst</label>
+    <label class="check"><input type="checkbox" id="insults"> Kreativa förolämpningar vid fel</label>
+    <label class="check"><input type="checkbox" id="beep" checked> Pip när tiden är slut</label>
+  </p>
+
+  <p id="warn" class="warn" hidden></p>
+
+  <section class="boxes-section" aria-labelledby="boxes-title">
+    <div class="boxes-head">
+      <h2 id="boxes-title">Lådor</h2>
+      <button type="button" class="link" id="resetBoxes">Börja om</button>
+    </div>
+    <div class="boxes-scroll"><div class="boxes" id="boxes"></div></div>
+    <p class="hint" id="boxhint">Lådans nummer är hur många rätt i rad uppgiften har: låda 0 är nya eller fel senast, låda 5+ är fem rätt i rad eller fler. Rätt svar flyttar uppgiften en låda åt höger, fel svar tillbaka till låda 0, och utan svar ligger den kvar. Låda 0 frågas oftast, sedan hälften så ofta för varje låda åt höger. Nya uppgifter får varannan fråga i låda 0. Den blå lådan visar var den aktuella uppgiften ligger. Klicka på en låda för att se vilka uppgifter den innehåller.</p>
+  </section>
+
+  <dialog class="boxdlg" id="boxdlg" aria-labelledby="dlgtitle">
+    <div class="dlg-head">
+      <h3 id="dlgtitle"></h3>
+      <button type="button" class="link" id="dlgclose">Stäng</button>
+    </div>
+    <p class="dlg-sub" id="dlgsub"></p>
+    <ul class="facts" id="dlglist"></ul>
+  </dialog>
+
+  <details open>
+    <summary>Vilka tal ska övas</summary>
+    <div class="settings">
+      <div class="picker">
+        <div class="picker-head">
+          <strong>Tabeller</strong>
+          <button type="button" class="link" data-all="tables">Alla</button>
+          <button type="button" class="link" data-none="tables">Inga</button>
+        </div>
+        <div class="chips" id="tables" role="group" aria-label="Tabeller"></div>
+      </div>
+      <div class="picker">
+        <div class="picker-head">
+          <strong>Gånger</strong>
+          <button type="button" class="link" data-all="factors">Alla</button>
+          <button type="button" class="link" data-none="factors">Inga</button>
+        </div>
+        <div class="chips" id="factors" role="group" aria-label="Gånger"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="inverted" checked> Fråga även omvänt, till exempel 1 × 2 och inte bara 2 × 1</label>
+      <p class="poolinfo" id="poolinfo"></p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Röst och variation</summary>
+    <div class="settings">
+      <label>Röst
+        <select id="voice"></select>
+      </label>
+      <label class="check"><input type="checkbox" id="rotate"> Växla mellan svenska röster</label>
+      <label>Grundväntetid före svaret
+        <span class="row"><input type="range" id="wait" min="0" max="8" step="0.5" value="3"><output id="waitOut">3 s</output></span>
+      </label>
+      <p class="hint">Svårare tal ger längre betänketid: grundtiden gånger (1 + svaret/144). 12 × 12 får alltså dubbelt så lång tid som 0 × 5. I Lyssna-läget är grundtiden pausen mellan talen.</p>
+      <label>Variation
+        <span class="row"><input type="range" id="variation" min="0" max="100" step="5" value="50"><output id="varOut">50 %</output></span>
+      </label>
+      <p class="hint">Variationen slumpar tonhöjd, tempo, formulering och skiljetecken. Vid 0 % låter alla frågor likadant.</p>
+      <label>Grundtempo
+        <span class="row"><input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="0.95"><output id="rateOut">0,95</output></span>
+      </label>
+      <label>Grundtonhöjd
+        <span class="row"><input type="range" id="pitch" min="0.5" max="1.6" step="0.05" value="1"><output id="pitchOut">1,00</output></span>
+      </label>
+    </div>
+  </details>
+</main>
+
+<script>
+(() => {
+  const synth = window.speechSynthesis;
+  const $ = id => document.getElementById(id);
+  const els = {
+    a: $("a"), b: $("b"), ans: $("ans"), bar: $("bar"), spoken: $("spoken"),
+    toggle: $("toggle"), once: $("once"), warn: $("warn"),
+    voice: $("voice"), rotate: $("rotate"), wait: $("wait"), waitOut: $("waitOut"),
+    variation: $("variation"), varOut: $("varOut"),
+    rate: $("rate"), rateOut: $("rateOut"), pitch: $("pitch"), pitchOut: $("pitchOut"),
+    useVoice: $("useVoice"), insults: $("insults"), beep: $("beep")
+  };
+
+  const hasTTS = !!synth && typeof SpeechSynthesisUtterance !== "undefined";
+  const voiceOn = () => hasTTS && els.useVoice.checked;
+  const cancelSpeech = () => { if (hasTTS) synth.cancel(); };
+
+  // ---------- settings persistence ----------
+  const KEY = "gangertabell-settings";
+  function loadSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY) || "{}");
+      for (const k of ["wait", "variation", "rate", "pitch"]) if (s[k] != null) els[k].value = s[k];
+      if (s.rotate != null) els.rotate.checked = s.rotate;
+      if (s.useVoice != null) els.useVoice.checked = s.useVoice;
+      if (s.insults != null) els.insults.checked = s.insults;
+      if (s.beep != null) els.beep.checked = s.beep;
+      return s;
+    } catch { return {}; }
+  }
+  function saveSettings() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        wait: els.wait.value, variation: els.variation.value, rate: els.rate.value,
+        pitch: els.pitch.value, rotate: els.rotate.checked, voice: els.voice.value,
+        useVoice: els.useVoice.checked, insults: els.insults.checked,
+        beep: els.beep.checked
+      }));
+    } catch {}
+  }
+  const saved = loadSettings();
+
+  // ---------- which problems to practise ----------
+  const SEL_KEY = "gangertabell-urval";
+  const sel = { tables: new Set(), factors: new Set(), inverted: true };
+  try {
+    const s = JSON.parse(localStorage.getItem(SEL_KEY) || "null");
+    if (s) {
+      sel.tables = new Set(s.tables);
+      sel.factors = new Set(s.factors);
+      sel.inverted = !!s.inverted;
+    } else throw 0;
+  } catch {
+    for (let i = 0; i <= 12; i++) { sel.tables.add(i); sel.factors.add(i); }
+  }
+  const invertedBox = document.getElementById("inverted");
+  invertedBox.checked = sel.inverted;
+
+  function saveSel() {
+    try {
+      localStorage.setItem(SEL_KEY, JSON.stringify({
+        tables: [...sel.tables], factors: [...sel.factors], inverted: sel.inverted
+      }));
+    } catch {}
+  }
+
+  // Leitner boxes, six of them. Each problem (2x3 and 3x2 separately) keeps
+  // its number of correct answers in a row, capped at 5:
+  //   correct -> streak + 1 (max 5), wrong -> 0, no answer -> unchanged.
+  // Boxes are numbered by streak: box 0 holds new or wrong last time,
+  // box 5 holds five or more in a row. Never-answered problems live in box 0.
+  //
+  // Each question first picks a box among the non-empty ones: box 1 has
+  // weight 1, box 2 weight 1/2, ... box 6 weight 1/32, regardless of how many
+  // problems each box holds. Within the box, never-answered and answered
+  // problems take turns (half the draws each when both exist); among the
+  // answered ones, the problem asked longest ago wins.
+  const BOXES = 6;
+  const MAX_STREAK = BOXES - 1;
+  let pool = [];
+  let last = null;   // the problem most recently asked
+  let roundBoxes = new Set();   // box index of the current problem, for highlighting
+  const lastAsked = new Map();
+  let askCounter = 0;
+  const keyOf = p => p[0] + "x" + p[1];
+  const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
+
+  const STREAK_KEY = "gangertabell-irad";
+  let streaks = {};
+  try {
+    const stored = localStorage.getItem(STREAK_KEY);
+    if (stored) {
+      streaks = JSON.parse(stored) || {};
+    } else {
+      // Migrate from the earlier box numbers (1000 + correct in a row).
+      const old = JSON.parse(localStorage.getItem("gangertabell-lador") || "{}") || {};
+      for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
+      localStorage.setItem(STREAK_KEY, JSON.stringify(streaks));
+      localStorage.removeItem("gangertabell-lador");
+    }
+  } catch { streaks = {}; }
+  const isUnseen = p => streaks[keyOf(p)] === undefined;
+  const boxOf = p => streaks[keyOf(p)] ?? 0;   // box index 0..5
+  function updateBaseline() {}                  // kept for callers; nothing to do
+  function saveBoxes() {
+    try { localStorage.setItem(STREAK_KEY, JSON.stringify(streaks)); } catch {}
+  }
+
+  // The selected problems in each of the six boxes (some may be empty).
+  function groupBoxes() {
+    const groups = Array.from({ length: BOXES }, () => []);
+    for (const p of pool) groups[boxOf(p)].push(p);
+    return { groups };
+  }
+
+  function renderBoxes() {
+    const el = document.getElementById("boxes");
+    el.innerHTML = "";
+    if (!pool.length) {
+      el.innerHTML = '<p class="boxes-empty">Inga uppgifter valda.</p>';
+      return;
+    }
+    const { groups } = groupBoxes();
+    groups.forEach((g, i) => {
+      const d = document.createElement("button");
+      d.type = "button";
+      d.addEventListener("click", () => openBox(i));
+      const now = roundBoxes.has(i);
+      d.className = "box" + (now ? " now" : "");
+      const c = g.length;
+      // Same size for every box; the fill shows the share of the selection.
+      const pct = c ? Math.max(2, Math.round(100 * c / pool.length)) : 0;
+      d.innerHTML = `<span class="count">${c}</span>
+        <span class="fill"><i style="height:${pct}%"></i></span>
+        <span class="label">låda ${boxName(i)}</span>`;
+      d.title = `${c} ${c === 1 ? "uppgift" : "uppgifter"}` + (now ? ", aktuell uppgift" : "") + ". Klicka för att se dem.";
+      d.setAttribute("aria-label", `Låda ${boxName(i)}, ${d.title}`);
+      el.appendChild(d);
+    });
+  }
+
+  const dlg = document.getElementById("boxdlg");
+  function openBox(i) {
+    const { groups } = groupBoxes();
+    const items = groups[i].slice().sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+    document.getElementById("dlgtitle").textContent = `Låda ${boxName(i)}`;
+    const n = items.length;
+    let sub = `${n} ${n === 1 ? "uppgift" : "uppgifter"}`;
+    sub += i === 0
+      ? (!n ? "." : items.every(isUnseen) ? ", alla nya." : items.some(isUnseen) ? ", nya eller fel senast." : ", fel senast.")
+      : i === MAX_STREAK ? `, ${MAX_STREAK} eller fler rätt i rad.`
+      : `, ${i} rätt i rad.`;
+    document.getElementById("dlgsub").textContent = sub;
+    const list = document.getElementById("dlglist");
+    list.innerHTML = "";
+    for (const p of items) {
+      const li = document.createElement("li");
+      if (last && keyOf(p) === keyOf(last)) li.className = "cur";
+      const note = isUnseen(p) ? "ny" : i === 0 ? "fel senast" : "";
+      li.innerHTML = `<span class="q">${p[0]} × ${p[1]}</span>` + (note ? `<span class="s">${note}</span>` : "");
+      list.appendChild(li);
+    }
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  }
+  function closeBox() {
+    if (typeof dlg.close === "function") dlg.close(); else dlg.removeAttribute("open");
+  }
+  document.getElementById("dlgclose").addEventListener("click", closeBox);
+  // Click on the backdrop closes the dialog.
+  dlg.addEventListener("click", e => { if (e.target === dlg) closeBox(); });
+
+  function recordResult(p, correct) {
+    streaks[keyOf(p)] = correct ? Math.min(MAX_STREAK, boxOf(p) + 1) : 0;
+    roundBoxes = new Set([boxOf(p)]);
+    saveBoxes();
+    renderBoxes();
+  }
+
+  function pickProblem() {
+    if (!pool.length) return null;
+    const { groups } = groupBoxes();
+    const notLast = p => !(last && keyOf(p) === keyOf(last));
+    // Non-empty boxes, skipping a box whose only problem is the one just asked.
+    const nonEmpty = groups.map((g, i) => i).filter(i => groups[i].length);
+    let candidates = nonEmpty.filter(i => groups[i].some(notLast));
+    if (!candidates.length) candidates = nonEmpty;
+    const weights = candidates.map(i => Math.pow(2, -i));
+    let r = Math.random() * weights.reduce((x, y) => x + y, 0);
+    let k = 0;
+    while (k < weights.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
+    let items = groups[candidates[k]].filter(notLast);
+    if (!items.length) items = groups[candidates[k]];
+
+    const unseen = shuffle(items.filter(isUnseen));
+    const seen = shuffle(items.filter(p => !isUnseen(p)));
+    seen.sort((x, y) => (lastAsked.get(keyOf(x)) ?? -1) - (lastAsked.get(keyOf(y)) ?? -1));
+    if (unseen.length && seen.length) return Math.random() < 0.5 ? unseen[0] : seen[0];
+    return unseen[0] || seen[0];
+  }
+
+  // Two-step confirmation in the page itself: the hosted page runs in a
+  // sandbox where window.confirm() is blocked and silently returns false.
+  const resetBtn = document.getElementById("resetBoxes");
+  let resetArmed = null;
+  resetBtn.addEventListener("click", () => {
+    if (!resetArmed) {
+      resetBtn.textContent = "Säker? Klicka igen för att flytta allt till låda 0";
+      resetArmed = setTimeout(() => { resetArmed = null; resetBtn.textContent = "Börja om"; }, 4000);
+      return;
+    }
+    clearTimeout(resetArmed);
+    resetArmed = null;
+    resetBtn.textContent = "Börja om";
+    streaks = {};
+    lastAsked.clear();
+    saveBoxes();
+    updateBaseline();
+    roundBoxes = new Set();
+    renderBoxes();
+    updatePoolInfo();
+  });
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function updatePoolInfo() {
+    const info = document.getElementById("poolinfo");
+    info.classList.toggle("empty", pool.length === 0);
+    if (pool.length === 0) {
+      info.textContent = "Välj minst en tabell och ett tal att multiplicera med.";
+      return;
+    }
+    const total = pool.length === 1 ? "1 uppgift i urvalet" : `${pool.length} uppgifter i urvalet`;
+    info.textContent = `${total}.`;
+  }
+
+  function buildPool() {
+    const seen = new Set();
+    pool = [];
+    const add = (a, b) => {
+      const k = a + "x" + b;
+      if (!seen.has(k)) { seen.add(k); pool.push([a, b]); }
+    };
+    for (const t of [...sel.tables].sort((x, y) => x - y)) {
+      for (const f of [...sel.factors].sort((x, y) => x - y)) {
+        add(t, f);
+        if (sel.inverted) add(f, t);
+      }
+    }
+    updateBaseline();
+    if (last && !seen.has(keyOf(last))) roundBoxes = new Set();
+    updatePoolInfo();
+    renderBoxes();
+  }
+
+  function renderChips(kind) {
+    const box = document.getElementById(kind);
+    box.innerHTML = "";
+    for (let i = 0; i <= 12; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = i;
+      b.setAttribute("aria-pressed", sel[kind].has(i));
+      b.addEventListener("click", () => {
+        sel[kind].has(i) ? sel[kind].delete(i) : sel[kind].add(i);
+        b.setAttribute("aria-pressed", sel[kind].has(i));
+        buildPool(); saveSel();
+      });
+      box.appendChild(b);
+    }
+  }
+  for (const kind of ["tables", "factors"]) renderChips(kind);
+  document.querySelectorAll("[data-all],[data-none]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const kind = btn.dataset.all || btn.dataset.none;
+      sel[kind] = new Set();
+      if (btn.dataset.all) for (let i = 0; i <= 12; i++) sel[kind].add(i);
+      renderChips(kind); buildPool(); saveSel();
+    });
+  });
+  invertedBox.addEventListener("change", () => {
+    sel.inverted = invertedBox.checked;
+    buildPool(); saveSel();
+  });
+  buildPool();
+
+  const fmt = n => Number(n).toFixed(2).replace(".", ",");
+  function syncOutputs() {
+    els.waitOut.textContent = String(els.wait.value).replace(".", ",") + " s";
+    els.varOut.textContent = els.variation.value + " %";
+    els.rateOut.textContent = fmt(els.rate.value);
+    els.pitchOut.textContent = fmt(els.pitch.value);
+  }
+  for (const k of ["wait", "variation", "rate", "pitch"]) {
+    els[k].addEventListener("input", () => { syncOutputs(); saveSettings(); });
+  }
+  els.rotate.addEventListener("change", saveSettings);
+  els.insults.addEventListener("change", saveSettings);
+  els.beep.addEventListener("change", () => {
+    saveSettings();
+    if (!els.beep.checked) cancelBlip();
+    if (running && needsAudio()) startKeepAlive(); else if (!needsAudio()) stopKeepAlive();
+  });
+  els.useVoice.addEventListener("change", () => {
+    saveSettings();
+    if (!els.useVoice.checked) cancelSpeech();
+    if (running && needsAudio()) startKeepAlive(); else if (!needsAudio()) stopKeepAlive();
+  });
+  if (!hasTTS) {
+    els.useVoice.checked = false;
+    els.useVoice.disabled = true;
+  }
+  els.voice.addEventListener("change", saveSettings);
+  syncOutputs();
+
+  // ---------- voices ----------
+  let voices = [], svVoices = [];
+  function loadVoices() {
+    if (!hasTTS) {
+      els.warn.hidden = false;
+      els.warn.textContent = "Den här webbläsaren saknar talsyntes, så appen körs tyst. Prova Chrome, Edge eller Safari för uppläsning.";
+      return;
+    }
+    voices = synth.getVoices();
+    if (!voices.length) return;
+    svVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("sv"));
+    const list = svVoices.length ? svVoices : voices;
+    els.voice.innerHTML = "";
+    for (const v of list) {
+      const o = document.createElement("option");
+      o.value = v.voiceURI;
+      o.textContent = `${v.name} (${v.lang})${v.localService ? "" : ", online"}`;
+      els.voice.appendChild(o);
+    }
+    if (saved.voice && list.some(v => v.voiceURI === saved.voice)) els.voice.value = saved.voice;
+    els.warn.hidden = svVoices.length > 0;
+    if (!svVoices.length) {
+      els.warn.textContent = "Hittade ingen svensk röst. Installera en svensk röst i operativsystemet eller prova en annan webbläsare.";
+    }
+  }
+  loadVoices();
+  if (hasTTS && "onvoiceschanged" in synth) synth.addEventListener("voiceschanged", loadVoices);
+
+  function pickVoice() {
+    if (els.rotate.checked && svVoices.length > 1) {
+      return svVoices[Math.floor(Math.random() * svVoices.length)];
+    }
+    return voices.find(v => v.voiceURI === els.voice.value) || svVoices[0] || null;
+  }
+
+  // ---------- variation ----------
+  const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+
+  // First entry of each list is the "neutral" form used when variation is 0.
+  // Flavor text may only come BEFORE the question and AFTER the answer,
+  // so "a gånger b" is always immediately followed by the answer.
+  // After a verb, "ett" is read as an article ("är ett bord"),
+  // so we add a colon to force a pause before it.
+  const lead = (intro, a) => a === "ett" ? `${intro}: ${a}` : `${intro} ${a}`;
+
+  const questionTemplates = [
+    (a, b) => `${a} gånger ${b}?`,
+    (a, b) => `${lead("Vad blir", a)} gånger ${b}?`,
+    (a, b) => `${lead("Hur mycket är", a)} gånger ${b}?`,
+    (a, b) => `Okej, ${a} gånger ${b}?`,
+    (a, b) => `Och ${a} gånger ${b}?`,
+    (a, b) => `Nästa: ${a} gånger ${b}?`,
+  ];
+  // The answer is spoken bare. Only punctuation varies, to nudge intonation.
+  const answerTemplates = [
+    (a, b, c) => `${c}.`,
+    (a, b, c) => `${c}!`,
+  ];
+
+  function choose(list, v) {
+    // v in [0,1]; the chance of leaving the neutral form grows with v.
+    if (Math.random() >= v) return list[0];
+    return list[1 + Math.floor(Math.random() * (list.length - 1))];
+  }
+
+  function voiceParams(voice) {
+    const v = els.variation.value / 100;
+    return {
+      pitch: clamp(Number(els.pitch.value) + rand(-0.3, 0.3) * v, 0.1, 2),
+      rate: clamp(Number(els.rate.value) * (1 + rand(-0.15, 0.15) * v), 0.3, 2),
+      voice
+    };
+  }
+
+  // A lone 1 is read as "en" by most engines; we want "ett".
+  const say = n => n === 1 ? "ett" : String(n);
+
+  // ---------- speaking ----------
+  function speak(text, params, timeoutMs) {
+    if (!voiceOn()) return Promise.resolve();
+    return new Promise(resolve => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = (params.voice && params.voice.lang) || "sv-SE";
+      if (params.voice) u.voice = params.voice;
+      u.pitch = params.pitch ?? 1;
+      u.rate = params.rate ?? 1;
+      u.volume = params.volume ?? 1;
+      let done = false;
+      const finish = () => { if (!done) { done = true; clearTimeout(t); resolve(); } };
+      u.onend = finish;
+      u.onerror = finish;
+      // Safety net: some engines never fire onend.
+      const t = setTimeout(finish, timeoutMs ?? 1500 + text.length * 180);
+      synth.speak(u);
+    });
+  }
+
+  // ---------- one-time initialisation ----------
+  // The first utterance is often clipped or glitchy: the engine is still
+  // loading, and voices may not be available yet. We warm up once, from the
+  // first click, with a silent utterance and wait until voices are ready.
+  function voicesReady() {
+    if (synth.getVoices().length) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => { clearTimeout(t); synth.removeEventListener?.("voiceschanged", done); loadVoices(); resolve(); };
+      const t = setTimeout(done, 1500);
+      synth.addEventListener?.("voiceschanged", done);
+    });
+  }
+
+  // Many audio outputs (Bluetooth, USB, power-saving sound cards) go to sleep
+  // after a moment of silence and swallow the start of the next sound.
+  // An inaudible 20 Hz tone at very low level keeps the output awake.
+  // A short, soft "blipp" when the thinking time runs out: a sine tone
+  // gliding 520 -> 440 Hz over 80 ms, quick fade in and out.
+  // It is scheduled on the audio clock when the timer starts (sample
+  // accurate, no JS timer jitter), shifted earlier by the output latency so
+  // it is HEARD when time is up, and cancelled if the wait ends early.
+  // It uses the keep-alive context, so the audio output is already awake.
+  let pendingBlip = null;
+  function scheduleBlip(delaySec) {
+    cancelBlip();
+    try {
+      const ctx = keepAlive;
+      if (!ctx) return;
+      const latency = ctx.outputLatency || ctx.baseLatency || 0;
+      const t = Math.max(ctx.currentTime, ctx.currentTime + delaySec - latency);
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(440, t + 0.08);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.09);
+      pendingBlip = { osc, g };
+    } catch {}
+  }
+  function cancelBlip() {
+    if (!pendingBlip) return;
+    try { pendingBlip.osc.stop(); pendingBlip.g.disconnect(); } catch {}
+    pendingBlip = null;
+  }
+  const needsAudio = () => voiceOn() || els.beep.checked;
+
+  let keepAlive = null;
+  function startKeepAlive() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!keepAlive) {
+        const ctx = new Ctx();
+        const osc = ctx.createOscillator();
+        osc.frequency.value = 20;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0015;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        keepAlive = ctx;
+      }
+      keepAlive.resume();
+    } catch {}
+  }
+  function stopKeepAlive() {
+    try { if (keepAlive) keepAlive.suspend(); } catch {}
+  }
+
+  let warmUpPromise = null;
+  function warmUp() {
+    if (!voiceOn()) return Promise.resolve();
+    if (!warmUpPromise) {
+      // Speak synchronously inside the click so iOS/Safari unlocks audio.
+      const silent = speak("ett", { volume: 0 }, 1200);
+      warmUpPromise = Promise.all([silent, voicesReady()])
+        .then(() => speak("ett", { voice: pickVoice(), volume: 0 }, 1200))
+        .then(() => sleep(150));
+    }
+    return warmUpPromise;
+  }
+
+  // ---------- loop ----------
+  let running = false;
+  let runId = 0;
+
+  // Typed answer for the current problem. Reset whenever a new problem starts.
+  let typed = "";
+  let typedAt = 0;        // time of the last change to the typed answer
+  let accepting = false;
+  const WRONG_SETTLE_MS = 2000;  // a wrong answer left alone this long ends the wait
+
+  // Praise is used sparingly: only on some correct answers, and kept
+  // proportionate to the task.
+  const PRAISE_CHANCE = 1 / 3;
+  const praise = ["bra", "rätt", "korrekt", "riktigt", "stämmer", "utmärkt", "precis",
+    "mycket riktigt", "jajamen", "exakt", "just det", "sant", "bravo",
+    "snyggt", "perfekt", "toppen", "kanon", "fint", "klockrent", "helt rätt", "mitt i prick",
+    "där satt den", "pang på", "fullträff", "alldeles riktigt", "självklart",
+    "japp", "stiligt", "absolut"];
+  const pick = list => list[Math.floor(Math.random() * list.length)];
+
+  // Mild schoolyard insults for wrong answers (opt-in). Spoken first,
+  // followed by the whole fact ("a gånger b är c"), so the question and
+  // the answer still end up next to each other.
+  const insultNouns = ["ärthjärna", "knasboll", "pantskalle", "fårskalle", "klantskalle",
+    "tokstolle", "pundhuvud", "dummerjöns", "träskalle", "knäppgök", "dumbom", "fjant",
+    "fåntratt", "pottsork", "mushjärna", "slöfock", "latmask", "skolkare"];
+  const insultAdjectives = ["galen", "pantad", "urblåst", "hjärndöd", "puckad", "bakom flötet",
+    "knäpp", "tokig", "snurrig", "ute och cyklar", "tappad bakom en vagn", "borta",
+    "dum i huvudet", "felvaggad", "bortkollrad", "korkad", "knasig", "vilse"];
+  // Verdicts are judgements that can follow each other ("Uselt, pinsamt").
+  // Exclamations of surprise only make sense first, so they are their own
+  // category and only ever open a line. A part ending in "?" or "!" ends
+  // its sentence; the next part then starts a new one instead of a comma.
+  const insultVerdicts = ["visset", "kasst", "uselt", "dåligt", "fel", "miss", "tyvärr",
+    "inte i närheten", "verkligen inte", "pinsamt", "inte ens nära", "inte riktigt",
+    "jag förstår inte hur du tänker", "absolut inte", "knappast"];
+  const insultOpeners = ["va?", "jasså?", "verkligen?", "det tror du?", "nää!", "hoppsan", "aj aj aj", "hallå?"];
+  const cap = t => t[0].toUpperCase() + t.slice(1);
+  const endsSentence = t => /[?!]$/.test(t);
+  function phrase(parts, end = ".") {
+    let out = cap(parts[0]);
+    for (let i = 1; i < parts.length; i++) {
+      out += endsSentence(parts[i - 1]) ? " " + cap(parts[i]) : ", " + parts[i];
+    }
+    return endsSentence(parts[parts.length - 1]) ? out : out + end;
+  }
+  const N = () => pick(insultNouns), A = () => pick(insultAdjectives);
+  const V = () => pick(insultVerdicts), U = () => pick(insultOpeners);
+  const insultTemplates = [
+    () => phrase(["nej", N()]),
+    () => `Är du helt ${A()}?`,
+    () => phrase([V()]),
+    () => phrase([V(), N()]),
+    () => `Men ${N()}!`,
+    () => `${phrase([V()])} Är du helt ${A()}?`,
+    () => `${phrase(["nej", N()])} Är du helt ${A()}?`,
+    () => `Men ${N()}, är du helt ${A()}?`,
+    () => `Är du helt ${A()}, ${N()}?`,
+    () => `Hörru ${N()}. ${phrase([V()])}`,
+    () => {
+      const [v1, v2] = shuffle(insultVerdicts.slice()).slice(0, 2);
+      return phrase([v1, v2, N()]);
+    },
+    () => phrase([U()]),
+    () => phrase([U(), N()]),
+    () => phrase([U(), V(), N()]),
+    () => phrase([U(), `är du helt ${A()}?`]),
+  ];
+  const insult = () => pick(insultTemplates)();
+  const lateRemarks = ["För sent!", "För sent.", "Tiden tog slut.", "Du hann nästan.", "Lite för långsamt."];
+
+  function showTyped() {
+    els.ans.textContent = typed || "?";
+    els.ans.className = typed ? "answer typed" : "answer pending";
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function newProblem() {
+    if (!pool.length) return null;
+    const p = pickProblem();
+    lastAsked.set(keyOf(p), askCounter++);
+    roundBoxes = new Set([boxOf(p)]);
+    last = p;
+    updatePoolInfo();
+    renderBoxes();
+    return p;
+  }
+
+  function animateBar(ms) {
+    els.bar.style.transition = "none";
+    els.bar.style.width = "0";
+    void els.bar.offsetWidth;
+    els.bar.style.transition = `width ${ms}ms linear`;
+    els.bar.style.width = "100%";
+  }
+  function freezeBar() {
+    const w = getComputedStyle(els.bar).width;
+    els.bar.style.transition = "none";
+    els.bar.style.width = w;
+  }
+
+  // Waits up to ms, but ends early:
+  //  - 250 ms after a correct answer has been typed, or
+  //  - when a wrong answer has been left untouched for WRONG_SETTLE_MS.
+  // Any edit restarts both clocks, so there's always time to correct.
+  function waitForAnswer(ms, c) {
+    return new Promise(done => {
+      // Input closes in the same instant as the wait ends, before judging.
+      // Resolves with "timeout" when the full time ran out, else "early".
+      let reason = "early";
+      const resolve = () => { accepting = false; done(reason); };
+      const end = Date.now() + ms;
+      let earlyAt = null;
+      const tick = () => {
+        const now = Date.now();
+        if (now >= end) { reason = "timeout"; return resolve(); }
+        if (typed !== "" && Number(typed) === c) {
+          if (earlyAt === null) earlyAt = now + 250;
+          if (now >= earlyAt) return resolve();
+        } else {
+          earlyAt = null;
+          if (typed !== "" && now - typedAt >= WRONG_SETTLE_MS) return resolve();
+        }
+        setTimeout(tick, 10);
+      };
+      tick();
+    });
+  }
+
+  function resetBar() {
+    els.bar.style.transition = "none";
+    els.bar.style.width = "0";
+  }
+
+  async function round(id) {
+    const problem = newProblem();
+    if (!problem) {
+      stop();
+      els.spoken.textContent = "Urvalet är tomt. Välj minst en tabell och ett tal att multiplicera med.";
+      return false;
+    }
+    const [a, b] = problem;
+    const c = a * b;
+    const v = els.variation.value / 100;
+
+    // With voice (and thinking time), the problem stays hidden until the
+    // question has been read, so you don't read and hear it at once.
+    // Listen mode, or zero thinking time: just read "a gånger b är c".
+    const readOnly = listenMode || Number(els.wait.value) === 0;
+    const hideWhileReading = voiceOn() && !readOnly;
+    els.a.textContent = hideWhileReading ? "?" : a;
+    els.b.textContent = hideWhileReading ? "?" : b;
+    typed = "";
+    accepting = false;
+    document.getElementById("yours").innerHTML = "";
+    showTyped();
+    resetBar();
+
+    const voice = hasTTS ? pickVoice() : null;
+    const spoken = () => "";   // the question is never shown as text
+
+    // With no thinking time, say it all as one phrase so there's no gap.
+    if (readOnly) {
+      els.ans.textContent = c;
+      els.ans.className = "answer shown";
+      const text = `${say(a)} gånger ${say(b)} är ${say(c)}${Math.random() < v / 2 ? "!" : "."}`;
+      const params = voiceParams(voice);
+      els.spoken.textContent = spoken(text, params);
+      // The base wait setting is the pause between cards, so it sets the
+      // pace. Silent cards need a little time to be read at all.
+      const pauseMs = voiceOn()
+        ? Number(els.wait.value) * 1000
+        : Math.max(Number(els.wait.value) * 1000, SILENT_MIN_MS);
+      nextPauseMs = pauseMs;
+      if (!voiceOn()) animateBar(pauseMs);
+      await speak(text, params);
+      if (voiceOn() && id === runId) animateBar(pauseMs);
+      return id === runId;
+    }
+
+    // Read the question first (no-op when silent), then show the problem.
+    // Typing is allowed already while the question is read, so a quick
+    // answer isn't lost by starting a moment too early.
+    accepting = true;
+    const qText = choose(questionTemplates, v)(say(a), say(b));
+    const qParams = voiceParams(voice);
+    els.spoken.textContent = spoken(qText, qParams);
+    await speak(qText, qParams);
+    if (id !== runId) return false;
+    els.a.textContent = a;
+    els.b.textContent = b;
+
+    // Thinking time starts when the problem is shown.
+    // Harder problems get more: base * (1 + answer/144).
+    const waitMs = Number(els.wait.value) * 1000 * (1 + c / 144);
+    animateBar(waitMs);
+    if (els.beep.checked) scheduleBlip(waitMs / 1000);
+    const ended = await waitForAnswer(waitMs, c);
+    if (ended !== "timeout") cancelBlip();
+    pendingBlip = null;
+    if (id !== runId) return false;
+    freezeBar();
+
+    accepting = false;
+    const correct = typed !== "" && Number(typed) === c;
+    // No answer at all (distracted?) leaves the box alone; only an actual
+    // attempt moves the problem.
+    // Time ran out while typing the start of the right answer ("10" for 108):
+    // too slow rather than wrong. It keeps its box, and gets no insult.
+    const late = typed !== "" && !correct && ended === "timeout" && String(c).startsWith(typed);
+    if (typed !== "" && !late) recordResult([a, b], correct);
+    els.ans.textContent = c;
+    els.ans.className = "answer shown";
+    const word = pick(praise);
+    const typedWrong = typed !== "" && !correct;
+    // Show what was actually typed when it was wrong, since the answer
+    // replaces it on screen.
+    if (typedWrong) document.getElementById("yours").innerHTML = `Du skrev <s>${typed}</s>`;
+    const jab = late ? pick(lateRemarks)
+      : typedWrong && els.insults.checked ? insult() : "";
+    const praised = correct && Math.random() < PRAISE_CHANCE;
+    const aText = praised
+      ? `${say(c)}, ${word}!`
+      : jab ? `${jab} ${cap(say(a))} gånger ${say(b)} är ${say(c)}.`
+      : choose(answerTemplates, v)(say(a), say(b), say(c));
+    const aParams = voiceParams(voice);
+    // Same praise, insult or late remark as spoken, shown as text.
+    els.spoken.textContent = praised ? cap(word) + "!" : jab;
+    await speak(aText, aParams);
+    return id === runId;
+  }
+
+  async function loop() {
+    const id = ++runId;
+    while (running && id === runId) {
+      const ok = await round(id);
+      if (!ok) break;
+      const pause = nextPauseMs ?? (voiceOn() ? 1200 : SILENT_PAUSE_MS);
+      nextPauseMs = null;
+      await sleep(pause);
+    }
+  }
+
+  // Two ways to run: practice (Starta) and listen (Lyssna), which only
+  // reads question and answer together and never touches the boxes.
+  let listenMode = false;
+  const SILENT_PAUSE_MS = 2000;   // pause after an answer in silent practice
+  const SILENT_MIN_MS = 500;      // shortest time a silent listen card shows
+  let nextPauseMs = null;         // set by a listen round: pause before the next
+  const listenBtn = document.getElementById("listen");
+  function updateButtons() {
+    els.toggle.textContent = running && !listenMode ? "Pausa" : "Starta";
+    listenBtn.textContent = running && listenMode ? "Pausa" : "Lyssna";
+  }
+
+  async function start(listen = listenMode) {
+    if (running) stop();
+    listenMode = listen;
+    if (needsAudio()) startKeepAlive();
+    running = true;
+    updateButtons();
+    const id = ++runId;
+    if (!warmUpPromise) cancelSpeech();
+    await warmUp();
+    if (running && id === runId) loop();
+  }
+  function stop() {
+    running = false;
+    runId++;
+    accepting = false;
+    cancelSpeech();
+    cancelBlip();
+    stopKeepAlive();
+    resetBar();
+    updateButtons();
+  }
+
+  // Clicking the running mode's button pauses; the other one switches mode.
+  els.toggle.addEventListener("click", () => running && !listenMode ? stop() : start(false));
+  listenBtn.addEventListener("click", () => running && listenMode ? stop() : start(true));
+  els.once.addEventListener("click", async () => {
+    stop();
+    listenMode = false;
+    if (needsAudio()) startKeepAlive();
+    const id = ++runId;
+    await warmUp();
+    if (id === runId) await round(id);
+    await sleep(500);
+    if (id === runId && !running) stopKeepAlive();
+  });
+  document.addEventListener("keydown", e => {
+    if (dlg.open) return;   // the box dialog handles its own keys (Esc closes)
+    if (e.target.tagName === "SELECT" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) {
+      if (accepting && typed.length < 3) { typed += e.key; typedAt = Date.now(); showTyped(); }
+      e.preventDefault();
+      return;
+    }
+    if (e.key === "Backspace") {
+      if (accepting && typed) { typed = typed.slice(0, -1); typedAt = Date.now(); showTyped(); }
+      e.preventDefault();
+      return;
+    }
+    if (e.code === "Space" && !(e.target instanceof HTMLInputElement) && e.target.tagName !== "SELECT" && e.target.tagName !== "BUTTON") {
+      e.preventDefault();
+      running ? stop() : start();
+    }
+  });
+})();
+</script>
+</body>
+</html>
