@@ -38,3 +38,43 @@ test("'once' asks a question from the selection", async () => {
     assert.equal(doc.querySelectorAll("#boxes .box.now").length, 1);
   } finally { dom.window.close(); }
 });
+
+// Answers the question on screen with the given function of its answer.
+async function answerOnce(doc, window, answerOf) {
+  doc.getElementById("wait").value = "0.5";
+  doc.getElementById("once").click();
+  await new Promise(r => setTimeout(r, 50));
+  const a = Number(doc.getElementById("a").textContent);
+  const b = Number(doc.getElementById("b").textContent);
+  for (const key of String(answerOf(a * b))) {
+    doc.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }));
+  }
+  // Wait until the answer is shown.
+  for (let i = 0; i < 400 && !doc.getElementById("ans").classList.contains("shown"); i++) {
+    await new Promise(r => setTimeout(r, 10));
+  }
+  return a * b;
+}
+const boxCounts = doc => [...doc.querySelectorAll("#boxes .count")].map(e => Number(e.textContent));
+
+test("a correct answer moves the problem to box 1", async () => {
+  const { dom, doc, errors } = await loadPage();
+  try {
+    const c = await answerOnce(doc, dom.window, c => c);
+    assert.deepEqual(errors.map(e => e.message), []);
+    assert.equal(doc.getElementById("ans").textContent, String(c));
+    assert.deepEqual(boxCounts(doc), [168, 1, 0, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});
+
+test("a wrong answer keeps it in box 0, shows what was typed and insults when asked", async () => {
+  const { dom, doc, errors } = await loadPage();
+  try {
+    doc.getElementById("insults").checked = true;
+    const c = await answerOnce(doc, dom.window, c => c + 1);
+    assert.deepEqual(errors.map(e => e.message), []);
+    assert.equal(doc.getElementById("yours").textContent, `Du skrev ${c + 1}`);
+    assert.match(doc.getElementById("spoken").textContent, /^[A-ZÅÄÖ].*[.?!]$/);
+    assert.deepEqual(boxCounts(doc), [169, 0, 0, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});

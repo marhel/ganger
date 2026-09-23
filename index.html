@@ -513,14 +513,6 @@
     updatePoolInfo();
   });
 
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
   function updatePoolInfo() {
     const info = document.getElementById("poolinfo");
     info.classList.toggle("empty", pool.length === 0);
@@ -641,12 +633,7 @@
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
   // Texts to speak, see phrases.js.
-  const { say, cap, phrase, choose } = Phrases;
-  // The answer is spoken bare. Only punctuation varies, to nudge intonation.
-  const answerTemplates = [
-    (a, b, c) => `${c}.`,
-    (a, b, c) => `${c}!`,
-  ];
+  const { cap } = Phrases;
 
   function voiceParams(voice) {
     const v = els.variation.value / 100;
@@ -776,57 +763,8 @@
   let accepting = false;
   const WRONG_SETTLE_MS = 2000;  // a wrong answer left alone this long ends the wait
 
-  // Praise is used sparingly: only on some correct answers, and kept
-  // proportionate to the task.
+  // Praise is used sparingly: only on some correct answers.
   const PRAISE_CHANCE = 1 / 3;
-  const praise = ["bra", "rätt", "korrekt", "riktigt", "stämmer", "utmärkt", "precis",
-    "mycket riktigt", "jajamen", "exakt", "just det", "sant", "bravo",
-    "snyggt", "perfekt", "toppen", "kanon", "fint", "klockrent", "helt rätt", "mitt i prick",
-    "där satt den", "pang på", "fullträff", "alldeles riktigt", "självklart",
-    "japp", "stiligt", "absolut"];
-  const pick = list => list[Math.floor(Math.random() * list.length)];
-
-  // Mild schoolyard insults for wrong answers (opt-in). Spoken first,
-  // followed by the whole fact ("a gånger b är c"), so the question and
-  // the answer still end up next to each other.
-  const insultNouns = ["ärthjärna", "knasboll", "pantskalle", "fårskalle", "klantskalle",
-    "tokstolle", "pundhuvud", "dummerjöns", "träskalle", "knäppgök", "dumbom", "fjant",
-    "fåntratt", "pottsork", "mushjärna", "slöfock", "latmask", "skolkare"];
-  const insultAdjectives = ["galen", "pantad", "urblåst", "hjärndöd", "puckad", "bakom flötet",
-    "knäpp", "tokig", "snurrig", "ute och cyklar", "tappad bakom en vagn", "borta",
-    "dum i huvudet", "felvaggad", "bortkollrad", "korkad", "knasig", "vilse"];
-  // Verdicts are judgements that can follow each other ("Uselt, pinsamt").
-  // Exclamations of surprise only make sense first, so they are their own
-  // category and only ever open a line. A part ending in "?" or "!" ends
-  // its sentence; the next part then starts a new one instead of a comma.
-  const insultVerdicts = ["visset", "kasst", "uselt", "dåligt", "fel", "miss", "tyvärr",
-    "inte i närheten", "verkligen inte", "pinsamt", "inte ens nära", "inte riktigt",
-    "jag förstår inte hur du tänker", "absolut inte", "knappast"];
-  const insultOpeners = ["va?", "jasså?", "verkligen?", "det tror du?", "nää!", "hoppsan", "aj aj aj", "hallå?"];
-  const N = () => pick(insultNouns), A = () => pick(insultAdjectives);
-  const V = () => pick(insultVerdicts), U = () => pick(insultOpeners);
-  const insultTemplates = [
-    () => phrase(["nej", N()]),
-    () => `Är du helt ${A()}?`,
-    () => phrase([V()]),
-    () => phrase([V(), N()]),
-    () => `Men ${N()}!`,
-    () => `${phrase([V()])} Är du helt ${A()}?`,
-    () => `${phrase(["nej", N()])} Är du helt ${A()}?`,
-    () => `Men ${N()}, är du helt ${A()}?`,
-    () => `Är du helt ${A()}, ${N()}?`,
-    () => `Hörru ${N()}. ${phrase([V()])}`,
-    () => {
-      const [v1, v2] = shuffle(insultVerdicts.slice()).slice(0, 2);
-      return phrase([v1, v2, N()]);
-    },
-    () => phrase([U()]),
-    () => phrase([U(), N()]),
-    () => phrase([U(), V(), N()]),
-    () => phrase([U(), `är du helt ${A()}?`]),
-  ];
-  const insult = () => pick(insultTemplates)();
-  const lateRemarks = ["För sent!", "För sent.", "Tiden tog slut.", "Du hann nästan.", "Lite för långsamt."];
 
   function showTyped() {
     els.ans.textContent = typed || "?";
@@ -923,7 +861,7 @@
     if (readOnly) {
       els.ans.textContent = c;
       els.ans.className = "answer shown";
-      const text = `${say(a)} gånger ${say(b)} är ${say(c)}${Math.random() < v / 2 ? "!" : "."}`;
+      const text = Phrases.listenText(a, b, c, v);
       const params = voiceParams(voice);
       els.spoken.textContent = spoken(text, params);
       // The base wait setting is the pause between cards, so it sets the
@@ -971,21 +909,17 @@
     if (typed !== "" && !late) recordResult([a, b], correct);
     els.ans.textContent = c;
     els.ans.className = "answer shown";
-    const word = pick(praise);
     const typedWrong = typed !== "" && !correct;
     // Show what was actually typed when it was wrong, since the answer
     // replaces it on screen.
     if (typedWrong) document.getElementById("yours").innerHTML = `Du skrev <s>${typed}</s>`;
-    const jab = late ? pick(lateRemarks)
-      : typedWrong && els.insults.checked ? insult() : "";
-    const praised = correct && Math.random() < PRAISE_CHANCE;
-    const aText = praised
-      ? `${say(c)}, ${word}!`
-      : jab ? `${jab} ${cap(say(a))} gånger ${say(b)} är ${say(c)}.`
-      : choose(answerTemplates, v)(say(a), say(b), say(c));
+    const jab = late ? Phrases.lateRemark()
+      : typedWrong && els.insults.checked ? Phrases.insult() : "";
+    const praise = correct && Math.random() < PRAISE_CHANCE ? Phrases.praiseWord() : null;
+    const aText = Phrases.answerText({ a, b, c, praise, jab, v });
     const aParams = voiceParams(voice);
     // Same praise, insult or late remark as spoken, shown as text.
-    els.spoken.textContent = praised ? cap(word) + "!" : jab;
+    els.spoken.textContent = praise ? cap(praise) + "!" : jab;
     await speak(aText, aParams);
     return id === runId;
   }
