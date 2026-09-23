@@ -1,0 +1,11 @@
+{
+  "name": "ganger",
+  "private": true,
+  "description": "Gångertabellen: övning av multiplikationstabellen i webbläsaren",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}
