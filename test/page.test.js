@@ -147,3 +147,31 @@ test("moving the review slider saves it", async () => {
     assert.equal(saved.reviewEvery, "7");
   } finally { dom.window.close(); }
 });
+
+test("with no thinking time the answer is shown at once and no box changes", async () => {
+  const { dom, doc, errors } = await loadPage();
+  try {
+    doc.getElementById("wait").value = "0";
+    doc.getElementById("once").click();
+    await new Promise(r => setTimeout(r, 50));
+    assert.deepEqual(errors.map(e => e.message), []);
+    const a = Number(doc.getElementById("a").textContent);
+    const b = Number(doc.getElementById("b").textContent);
+    assert.equal(doc.getElementById("ans").textContent, String(a * b));
+    assert.deepEqual(boxCounts(doc), [169, 0, 0, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});
+
+test("'Börja om' needs a second click, then empties the boxes", async () => {
+  const { dom, doc } = await loadPage({ "gangertabell-irad": { "2x3": 3 } });
+  try {
+    assert.deepEqual(boxCounts(doc), [168, 0, 0, 1, 0, 0]);
+    const reset = doc.getElementById("resetBoxes");
+    reset.click();
+    assert.match(reset.textContent, /^Säker\?/);
+    assert.deepEqual(boxCounts(doc), [168, 0, 0, 1, 0, 0]);
+    reset.click();
+    assert.equal(reset.textContent, "Börja om");
+    assert.deepEqual(boxCounts(doc), [169, 0, 0, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});
