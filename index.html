@@ -384,25 +384,15 @@
     } catch {}
   }
 
-  // Leitner boxes, six of them. Each problem (2x3 and 3x2 separately) keeps
-  // its number of correct answers in a row, capped at 5:
-  //   correct -> streak + 1 (max 5), wrong -> 0, no answer -> unchanged.
-  // Boxes are numbered by streak: box 0 holds new or wrong last time,
-  // box 5 holds five or more in a row. Never-answered problems live in box 0.
-  //
-  // Each question first picks a box (see leitner.js): the lowest non-empty
-  // one, except every N-th question (a setting), which reviews a higher box.
-  // Within the box, never-answered and answered problems take turns (half the
-  // draws each when both exist); among the answered ones, the problem asked
-  // longest ago wins.
-  const BOXES = 6;
-  const MAX_STREAK = BOXES - 1;
+  // Leitner boxes, six of them, numbered by correct answers in a row: box 0
+  // holds new or wrong last time, box 5 five or more in a row. An answer
+  // moves the problem (see leitner.js); no answer leaves it where it is.
+  const { MAX_STREAK, keyOf } = Leitner;
   let pool = [];
   let last = null;   // the problem most recently asked
   let roundBoxes = new Set();   // box index of the current problem, for highlighting
   const lastAsked = new Map();
   let askCounter = 0;
-  const keyOf = p => p[0] + "x" + p[1];
   const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
 
   const STREAK_KEY = "gangertabell-irad";
@@ -428,9 +418,7 @@
 
   // The selected problems in each of the six boxes (some may be empty).
   function groupBoxes() {
-    const groups = Array.from({ length: BOXES }, () => []);
-    for (const p of pool) groups[boxOf(p)].push(p);
-    return { groups };
+    return { groups: Leitner.groupBoxes(pool, streaks) };
   }
 
   function renderBoxes() {
@@ -490,29 +478,18 @@
   dlg.addEventListener("click", e => { if (e.target === dlg) closeBox(); });
 
   function recordResult(p, correct) {
-    streaks[keyOf(p)] = correct ? Math.min(MAX_STREAK, boxOf(p) + 1) : 0;
+    streaks[keyOf(p)] = Leitner.nextStreak(streaks[keyOf(p)], correct);
     roundBoxes = new Set([boxOf(p)]);
     saveBoxes();
     renderBoxes();
   }
 
-  function pickProblem() {
-    if (!pool.length) return null;
-    const { groups } = groupBoxes();
-    const notLast = p => !(last && keyOf(p) === keyOf(last));
-    // Non-empty boxes, skipping a box whose only problem is the one just asked.
-    let counts = groups.map(g => g.filter(notLast).length);
-    if (counts.every(c => !c)) counts = groups.map(g => g.length);
-    const box = Leitner.pickBox(counts, askCounter + 1, Number(els.reviewEvery.value));
-    let items = groups[box].filter(notLast);
-    if (!items.length) items = groups[box];
-
-    const unseen = shuffle(items.filter(isUnseen));
-    const seen = shuffle(items.filter(p => !isUnseen(p)));
-    seen.sort((x, y) => (lastAsked.get(keyOf(x)) ?? -1) - (lastAsked.get(keyOf(y)) ?? -1));
-    if (unseen.length && seen.length) return Math.random() < 0.5 ? unseen[0] : seen[0];
-    return unseen[0] || seen[0];
-  }
+  // Each question first picks a box: the lowest non-empty one, except every
+  // N-th question (a setting), which reviews a higher box. See leitner.js.
+  const pickProblem = () => Leitner.pickProblem({
+    pool, streaks, lastAsked, last,
+    n: askCounter + 1, reviewEvery: Number(els.reviewEvery.value)
+  });
 
   // Two-step confirmation in the page itself: the hosted page runs in a
   // sandbox where window.confirm() is blocked and silently returns false.

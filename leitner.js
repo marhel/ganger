@@ -18,5 +18,60 @@
     return higher[k];
   }
 
+  const BOXES = 6;
+  const MAX_STREAK = BOXES - 1;
+  const keyOf = p => p[0] + "x" + p[1];
+
+  // Each problem (2x3 and 3x2 separately) keeps its number of correct
+  // answers in a row, capped at 5: correct -> +1, wrong -> 0.
+  // A problem never answered has no streak (undefined) and lives in box 0.
+  const nextStreak = (streak, correct) => correct ? Math.min(MAX_STREAK, (streak ?? 0) + 1) : 0;
+  const boxOf = (streaks, p) => streaks[keyOf(p)] ?? 0;
+
+  // The problems of the pool in each of the six boxes (some may be empty).
+  function groupBoxes(pool, streaks) {
+    const groups = Array.from({ length: BOXES }, () => []);
+    for (const p of pool) groups[boxOf(streaks, p)].push(p);
+    return groups;
+  }
+
+  function shuffle(arr, rand) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Picks the next problem: a box with pickBox, then within the box
+  // never-answered and answered problems take turns (half the draws each
+  // when both exist); among the answered ones, the problem asked longest ago
+  // (lastAsked: key -> question number) wins. The problem just asked is
+  // skipped when there is any other.
+  function pickProblem({ pool, streaks, lastAsked, last, n, reviewEvery, rand = Math.random }) {
+    if (!pool.length) return null;
+    const groups = groupBoxes(pool, streaks);
+    const isUnseen = p => streaks[keyOf(p)] === undefined;
+    const notLast = p => !(last && keyOf(p) === keyOf(last));
+    // Non-empty boxes, skipping a box whose only problem is the one just asked.
+    let counts = groups.map(g => g.filter(notLast).length);
+    if (counts.every(c => !c)) counts = groups.map(g => g.length);
+    const box = pickBox(counts, n, reviewEvery, rand);
+    let items = groups[box].filter(notLast);
+    if (!items.length) items = groups[box];
+
+    const unseen = shuffle(items.filter(isUnseen), rand);
+    const seen = shuffle(items.filter(p => !isUnseen(p)), rand);
+    seen.sort((x, y) => (lastAsked.get(keyOf(x)) ?? -1) - (lastAsked.get(keyOf(y)) ?? -1));
+    if (unseen.length && seen.length) return rand() < 0.5 ? unseen[0] : seen[0];
+    return unseen[0] || seen[0];
+  }
+
   exports.pickBox = pickBox;
+  exports.pickProblem = pickProblem;
+  exports.nextStreak = nextStreak;
+  exports.groupBoxes = groupBoxes;
+  exports.keyOf = keyOf;
+  exports.BOXES = BOXES;
+  exports.MAX_STREAK = MAX_STREAK;
 })(typeof module !== "undefined" ? module.exports : (window.Leitner = {}));
