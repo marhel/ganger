@@ -319,6 +319,7 @@
 <script src="leitner.js"></script>
 <script src="problems.js"></script>
 <script src="phrases.js"></script>
+<script src="judge.js"></script>
 <script>
 (() => {
   const synth = window.speechSynthesis;
@@ -761,7 +762,6 @@
   let typed = "";
   let typedAt = 0;        // time of the last change to the typed answer
   let accepting = false;
-  const WRONG_SETTLE_MS = 2000;  // a wrong answer left alone this long ends the wait
 
   // Praise is used sparingly: only on some correct answers.
   const PRAISE_CHANCE = 1 / 3;
@@ -797,29 +797,17 @@
     els.bar.style.width = w;
   }
 
-  // Waits up to ms, but ends early:
-  //  - 250 ms after a correct answer has been typed, or
-  //  - when a wrong answer has been left untouched for WRONG_SETTLE_MS.
-  // Any edit restarts both clocks, so there's always time to correct.
+  // Waits up to ms, but ends early once the answer has settled (see
+  // judge.js). Resolves with "timeout" when the full time ran out, else
+  // "early". Input closes in the same instant as the wait ends, before judging.
   function waitForAnswer(ms, c) {
     return new Promise(done => {
-      // Input closes in the same instant as the wait ends, before judging.
-      // Resolves with "timeout" when the full time ran out, else "early".
-      let reason = "early";
-      const resolve = () => { accepting = false; done(reason); };
       const end = Date.now() + ms;
-      let earlyAt = null;
       const tick = () => {
-        const now = Date.now();
-        if (now >= end) { reason = "timeout"; return resolve(); }
-        if (typed !== "" && Number(typed) === c) {
-          if (earlyAt === null) earlyAt = now + 250;
-          if (now >= earlyAt) return resolve();
-        } else {
-          earlyAt = null;
-          if (typed !== "" && now - typedAt >= WRONG_SETTLE_MS) return resolve();
-        }
-        setTimeout(tick, 10);
+        const outcome = Judge.waitOutcome({ now: Date.now(), end, typed, typedAt, c });
+        if (!outcome) return setTimeout(tick, 10);
+        accepting = false;
+        done(outcome);
       };
       tick();
     });
@@ -890,7 +878,7 @@
 
     // Thinking time starts when the problem is shown.
     // Harder problems get more: base * (1 + answer/144).
-    const waitMs = Number(els.wait.value) * 1000 * (1 + c / 144);
+    const waitMs = Judge.thinkMs(Number(els.wait.value), c);
     animateBar(waitMs);
     if (els.beep.checked) scheduleBlip(waitMs / 1000);
     const ended = await waitForAnswer(waitMs, c);
@@ -900,21 +888,16 @@
     freezeBar();
 
     accepting = false;
-    const correct = typed !== "" && Number(typed) === c;
-    // No answer at all (distracted?) leaves the box alone; only an actual
-    // attempt moves the problem.
-    // Time ran out while typing the start of the right answer ("10" for 108):
-    // too slow rather than wrong. It keeps its box, and gets no insult.
-    const late = typed !== "" && !correct && ended === "timeout" && String(c).startsWith(typed);
-    if (typed !== "" && !late) recordResult([a, b], correct);
+    const { correct, wrong, late, record } = Judge.judge(typed, c, ended);
+    if (record) recordResult([a, b], correct);
     els.ans.textContent = c;
     els.ans.className = "answer shown";
-    const typedWrong = typed !== "" && !correct;
-    // Show what was actually typed when it was wrong, since the answer
-    // replaces it on screen.
-    if (typedWrong) document.getElementById("yours").innerHTML = `Du skrev <s>${typed}</s>`;
+    // Show what was actually typed when it was wrong or late, since the
+    // answer replaces it on screen.
+    if (wrong || late) document.getElementById("yours").innerHTML = `Du skrev <s>${typed}</s>`;
+    // A late answer gets a remark rather than an insult.
     const jab = late ? Phrases.lateRemark()
-      : typedWrong && els.insults.checked ? Phrases.insult() : "";
+      : wrong && els.insults.checked ? Phrases.insult() : "";
     const praise = correct && Math.random() < PRAISE_CHANCE ? Phrases.praiseWord() : null;
     const aText = Phrases.answerText({ a, b, c, praise, jab, v });
     const aParams = voiceParams(voice);
