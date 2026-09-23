@@ -382,13 +382,13 @@
   // Leitner boxes, six of them, numbered by correct answers in a row: box 0
   // holds new or wrong last time, box 5 five or more in a row. An answer
   // moves the problem (see leitner.js); no answer leaves it where it is.
-  const { MAX_STREAK, keyOf } = Leitner;
+  const { keyOf } = Leitner;
   let pool = [];
   let last = null;   // the problem most recently asked
   let roundBoxes = new Set();   // box index of the current problem, for highlighting
   const lastAsked = new Map();
   let askCounter = 0;
-  const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
+  const { boxName, countText } = Leitner;
 
   const STREAK_KEY = "gangertabell-irad";
   let streaks = {};
@@ -411,9 +411,7 @@
   }
 
   // The selected problems in each of the six boxes (some may be empty).
-  function groupBoxes() {
-    return { groups: Leitner.groupBoxes(pool, streaks) };
-  }
+  const groupBoxes = () => Leitner.groupBoxes(pool, streaks);
 
   function renderBoxes() {
     const el = document.getElementById("boxes");
@@ -422,7 +420,7 @@
       el.innerHTML = '<p class="boxes-empty">Inga uppgifter valda.</p>';
       return;
     }
-    const { groups } = groupBoxes();
+    const groups = groupBoxes();
     groups.forEach((g, i) => {
       const d = document.createElement("button");
       d.type = "button";
@@ -435,7 +433,7 @@
       d.innerHTML = `<span class="count">${c}</span>
         <span class="fill"><i style="height:${pct}%"></i></span>
         <span class="label">låda ${boxName(i)}</span>`;
-      d.title = `${c} ${c === 1 ? "uppgift" : "uppgifter"}` + (now ? ", aktuell uppgift" : "") + ". Klicka för att se dem.";
+      d.title = countText(c) + (now ? ", aktuell uppgift" : "") + ". Klicka för att se dem.";
       d.setAttribute("aria-label", `Låda ${boxName(i)}, ${d.title}`);
       el.appendChild(d);
     });
@@ -443,22 +441,17 @@
 
   const dlg = document.getElementById("boxdlg");
   function openBox(i) {
-    const { groups } = groupBoxes();
+    const groups = groupBoxes();
     const items = groups[i].slice().sort((x, y) => x[0] - y[0] || x[1] - y[1]);
     document.getElementById("dlgtitle").textContent = `Låda ${boxName(i)}`;
-    const n = items.length;
-    let sub = `${n} ${n === 1 ? "uppgift" : "uppgifter"}`;
-    sub += i === 0
-      ? (!n ? "." : items.every(isUnseen) ? ", alla nya." : items.some(isUnseen) ? ", nya eller fel senast." : ", fel senast.")
-      : i === MAX_STREAK ? `, ${MAX_STREAK} eller fler rätt i rad.`
-      : `, ${i} rätt i rad.`;
-    document.getElementById("dlgsub").textContent = sub;
+    document.getElementById("dlgsub").textContent =
+      Leitner.boxSummary(i, items.length, items.filter(isUnseen).length);
     const list = document.getElementById("dlglist");
     list.innerHTML = "";
     for (const p of items) {
       const li = document.createElement("li");
       if (last && keyOf(p) === keyOf(last)) li.className = "cur";
-      const note = isUnseen(p) ? "ny" : i === 0 ? "fel senast" : "";
+      const note = Leitner.itemNote(i, isUnseen(p));
       li.innerHTML = `<span class="q">${p[0]} × ${p[1]}</span>` + (note ? `<span class="s">${note}</span>` : "");
       list.appendChild(li);
     }

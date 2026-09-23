@@ -78,3 +78,18 @@ test("a wrong answer keeps it in box 0, shows what was typed and insults when as
     assert.deepEqual(boxCounts(doc), [169, 0, 0, 0, 0, 0]);
   } finally { dom.window.close(); }
 });
+
+test("clicking a box lists its problems", async () => {
+  const { dom, doc, errors } = await loadPage();
+  try {
+    const box0 = doc.querySelector("#boxes .box");
+    assert.equal(box0.title, "169 uppgifter. Klicka för att se dem.");
+    box0.click();
+    assert.deepEqual(errors.map(e => e.message), []);
+    assert.equal(doc.getElementById("dlgtitle").textContent, "Låda 0");
+    assert.equal(doc.getElementById("dlgsub").textContent, "169 uppgifter, alla nya.");
+    const items = doc.querySelectorAll("#dlglist li");
+    assert.equal(items.length, 169);
+    assert.equal(items[0].textContent, "0 × 0ny");
+  } finally { dom.window.close(); }
+});

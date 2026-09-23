@@ -74,6 +74,18 @@
     return streaks;
   }
 
+  // Texts for showing the boxes.
+  const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
+  const countText = n => `${n} ${n === 1 ? "uppgift" : "uppgifter"}`;
+  // n problems in box i, unseen of them never answered.
+  function boxSummary(i, n, unseen) {
+    const what = i > 0 ? (i === MAX_STREAK ? `${i} eller fler rätt i rad` : `${i} rätt i rad`)
+      : !n ? "" : unseen === n ? "alla nya" : unseen ? "nya eller fel senast" : "fel senast";
+    return countText(n) + (what ? `, ${what}.` : ".");
+  }
+  const itemNote = (i, unseen) => unseen ? "ny" : i === 0 ? "fel senast" : "";
+
+  Object.assign(exports, { boxName, countText, boxSummary, itemNote });
   exports.pickBox = pickBox;
   exports.migrateOldBoxes = migrateOldBoxes;
   exports.pickProblem = pickProblem;

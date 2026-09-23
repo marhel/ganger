@@ -93,3 +93,35 @@ test("old box numbers (1000 + correct in a row) become streaks 0-5", () => {
     { "2x3": 0, "3x2": 2, "4x4": 5, "5x5": 0 });
   assert.deepEqual(migrateOldBoxes({}), {});
 });
+
+const { boxName, countText, boxSummary, itemNote } = require("../leitner.js");
+
+test("the top box is named 5+", () => {
+  assert.equal(boxName(0), "0");
+  assert.equal(boxName(4), "4");
+  assert.equal(boxName(5), "5+");
+});
+
+test("countText says uppgift or uppgifter", () => {
+  assert.equal(countText(0), "0 uppgifter");
+  assert.equal(countText(1), "1 uppgift");
+  assert.equal(countText(12), "12 uppgifter");
+});
+
+test("the summary of box 0 tells new from wrong last time", () => {
+  assert.equal(boxSummary(0, 0, 0), "0 uppgifter.");
+  assert.equal(boxSummary(0, 3, 3), "3 uppgifter, alla nya.");
+  assert.equal(boxSummary(0, 3, 1), "3 uppgifter, nya eller fel senast.");
+  assert.equal(boxSummary(0, 1, 0), "1 uppgift, fel senast.");
+});
+
+test("the summary of a higher box tells the correct answers in a row", () => {
+  assert.equal(boxSummary(2, 4, 0), "4 uppgifter, 2 rätt i rad.");
+  assert.equal(boxSummary(5, 1, 0), "1 uppgift, 5 eller fler rätt i rad.");
+});
+
+test("problems in box 0 are marked new or wrong last time", () => {
+  assert.equal(itemNote(0, true), "ny");
+  assert.equal(itemNote(0, false), "fel senast");
+  assert.equal(itemNote(3, false), "");
+});
