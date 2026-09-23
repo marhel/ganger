@@ -412,7 +412,6 @@
   } catch { streaks = {}; }
   const isUnseen = p => streaks[keyOf(p)] === undefined;
   const boxOf = p => streaks[keyOf(p)] ?? 0;   // box index 0..5
-  function updateBaseline() {}                  // kept for callers; nothing to do
   function saveBoxes() {
     try { localStorage.setItem(STREAK_KEY, JSON.stringify(streaks)); } catch {}
   }
@@ -508,7 +507,6 @@
     streaks = {};
     lastAsked.clear();
     saveBoxes();
-    updateBaseline();
     roundBoxes = new Set();
     renderBoxes();
     updatePoolInfo();
@@ -535,7 +533,6 @@
 
   function buildPool() {
     pool = Problems.buildPool(sel.tables, sel.factors, sel.inverted);
-    updateBaseline();
     if (last && !pool.some(p => keyOf(p) === keyOf(last))) roundBoxes = new Set();
     updatePoolInfo();
     renderBoxes();
