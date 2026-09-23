@@ -251,7 +251,7 @@
       <button type="button" class="link" id="resetBoxes">Börja om</button>
     </div>
     <div class="boxes-scroll"><div class="boxes" id="boxes"></div></div>
-    <p class="hint" id="boxhint">Lådans nummer är hur många rätt i rad uppgiften har: låda 0 är nya eller fel senast, låda 5+ är fem rätt i rad eller fler. Rätt svar flyttar uppgiften en låda åt höger, fel svar tillbaka till låda 0, och utan svar ligger den kvar. Låda 0 frågas oftast, sedan hälften så ofta för varje låda åt höger. Nya uppgifter får varannan fråga i låda 0. Den blå lådan visar var den aktuella uppgiften ligger. Klicka på en låda för att se vilka uppgifter den innehåller.</p>
+    <p class="hint" id="boxhint">Lådans nummer är hur många rätt i rad uppgiften har: låda 0 är nya eller fel senast, låda 5+ är fem rätt i rad eller fler. Rätt svar flyttar uppgiften en låda åt höger, fel svar tillbaka till låda 0, och utan svar ligger den kvar. Frågorna tas från den lägsta lådan som inte är tom, utom var tionde fråga som repeterar en uppgift ur en högre låda. Vid repetition är en uppgift i låda 1 dubbelt så trolig som en i låda 2, och så vidare. Nya uppgifter får varannan fråga i låda 0. Den blå lådan visar var den aktuella uppgiften ligger. Klicka på en låda för att se vilka uppgifter den innehåller.</p>
   </section>
 
   <dialog class="boxdlg" id="boxdlg" aria-labelledby="dlgtitle">
@@ -385,11 +385,11 @@
   // Boxes are numbered by streak: box 0 holds new or wrong last time,
   // box 5 holds five or more in a row. Never-answered problems live in box 0.
   //
-  // Each question first picks a box among the non-empty ones: box 1 has
-  // weight 1, box 2 weight 1/2, ... box 6 weight 1/32, regardless of how many
-  // problems each box holds. Within the box, never-answered and answered
-  // problems take turns (half the draws each when both exist); among the
-  // answered ones, the problem asked longest ago wins.
+  // Each question first picks a box (see leitner.js): the lowest non-empty
+  // one, except every 10th question, which reviews a higher box. Within the
+  // box, never-answered and answered problems take turns (half the draws each
+  // when both exist); among the answered ones, the problem asked longest ago
+  // wins.
   const BOXES = 6;
   const MAX_STREAK = BOXES - 1;
   let pool = [];
@@ -498,7 +498,7 @@
     // Non-empty boxes, skipping a box whose only problem is the one just asked.
     let counts = groups.map(g => g.filter(notLast).length);
     if (counts.every(c => !c)) counts = groups.map(g => g.length);
-    const box = Leitner.pickBox(counts);
+    const box = Leitner.pickBox(counts, askCounter + 1);
     let items = groups[box].filter(notLast);
     if (!items.length) items = groups[box];
 
