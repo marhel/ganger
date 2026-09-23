@@ -1,23 +1,6 @@
-// Box selection for the Leitner boxes, kept free of the page so it can be
-// tested with `node --test`. Loaded as a plain script in the browser.
+// The Leitner boxes: which problem to ask next, and how an answer moves it.
+// Loaded as a plain script in the browser, tested with `node --test`.
 (function (exports) {
-  // counts[i] is the number of problems that can be asked from box i,
-  // n is the question number (1, 2, ...). Asks from the lowest non-empty
-  // box, except every reviewEvery-th question, which reviews one of the
-  // higher boxes.
-  // A review picks box i with weight count/2^i, so each problem in box 1
-  // is twice as likely as one in box 2, and so on.
-  function pickBox(counts, n, reviewEvery, rand = Math.random) {
-    const nonEmpty = counts.map((c, i) => i).filter(i => counts[i] > 0);
-    const higher = nonEmpty.slice(1);
-    if (n % reviewEvery !== 0 || !higher.length) return nonEmpty[0];
-    const weights = higher.map(i => counts[i] * Math.pow(2, -i));
-    let r = rand() * weights.reduce((x, y) => x + y, 0);
-    let k = 0;
-    while (k < weights.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
-    return higher[k];
-  }
-
   const BOXES = 6;
   const MAX_STREAK = BOXES - 1;
   const keyOf = p => p[0] + "x" + p[1];
@@ -33,6 +16,30 @@
     const groups = Array.from({ length: BOXES }, () => []);
     for (const p of pool) groups[boxOf(streaks, p)].push(p);
     return groups;
+  }
+
+  // Earlier versions stored box numbers as 1000 + correct in a row.
+  function migrateOldBoxes(old) {
+    const streaks = {};
+    for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
+    return streaks;
+  }
+
+  // counts[i] is the number of problems that can be asked from box i,
+  // n is the question number (1, 2, ...). Asks from the lowest non-empty
+  // box, except every reviewEvery-th question, which reviews one of the
+  // higher boxes.
+  // A review picks box i with weight count/2^i, so each problem in box 1
+  // is twice as likely as one in box 2, and so on.
+  function pickBox(counts, n, reviewEvery, rand = Math.random) {
+    const nonEmpty = counts.map((c, i) => i).filter(i => counts[i] > 0);
+    const higher = nonEmpty.slice(1);
+    if (n % reviewEvery !== 0 || !higher.length) return nonEmpty[0];
+    const weights = higher.map(i => counts[i] * Math.pow(2, -i));
+    let r = rand() * weights.reduce((x, y) => x + y, 0);
+    let k = 0;
+    while (k < weights.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
+    return higher[k];
   }
 
   function shuffle(arr, rand) {
@@ -67,13 +74,6 @@
     return unseen[0] || seen[0];
   }
 
-  // Earlier versions stored box numbers as 1000 + correct in a row.
-  function migrateOldBoxes(old) {
-    const streaks = {};
-    for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
-    return streaks;
-  }
-
   // Texts for showing the boxes.
   const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
   const countText = n => `${n} ${n === 1 ? "uppgift" : "uppgifter"}`;
@@ -85,13 +85,8 @@
   }
   const itemNote = (i, unseen) => unseen ? "ny" : i === 0 ? "fel senast" : "";
 
-  Object.assign(exports, { boxName, countText, boxSummary, itemNote });
-  exports.pickBox = pickBox;
-  exports.migrateOldBoxes = migrateOldBoxes;
-  exports.pickProblem = pickProblem;
-  exports.nextStreak = nextStreak;
-  exports.groupBoxes = groupBoxes;
-  exports.keyOf = keyOf;
-  exports.BOXES = BOXES;
-  exports.MAX_STREAK = MAX_STREAK;
+  Object.assign(exports, {
+    BOXES, MAX_STREAK, keyOf, nextStreak, groupBoxes, migrateOldBoxes,
+    pickBox, pickProblem, boxName, countText, boxSummary, itemNote
+  });
 })(typeof module !== "undefined" ? module.exports : (window.Leitner = {}));

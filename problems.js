@@ -31,6 +31,5 @@
     return { tables: all(), factors: all(), inverted: true };
   }
 
-  exports.buildPool = buildPool;
-  exports.parseSelection = parseSelection;
+  Object.assign(exports, { buildPool, parseSelection });
 })(typeof module !== "undefined" ? module.exports : (window.Problems = {}));
