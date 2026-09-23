@@ -622,19 +622,13 @@
   }
 
   // ---------- variation ----------
-  const rand = (lo, hi) => lo + Math.random() * (hi - lo);
-  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
   // Texts to speak, see phrases.js.
   const { cap } = Phrases;
 
   function voiceParams(voice) {
-    const v = els.variation.value / 100;
-    return {
-      pitch: clamp(Number(els.pitch.value) + rand(-0.3, 0.3) * v, 0.1, 2),
-      rate: clamp(Number(els.rate.value) * (1 + rand(-0.15, 0.15) * v), 0.3, 2),
-      voice
-    };
+    const base = { pitch: Number(els.pitch.value), rate: Number(els.rate.value) };
+    return { ...Phrases.varyVoice(base, els.variation.value / 100), voice };
   }
 
   // ---------- speaking ----------

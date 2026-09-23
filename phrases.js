@@ -117,7 +117,20 @@
   const listenText = (a, b, c, v, rand = Math.random) =>
     `${say(a)} gånger ${say(b)} är ${say(c)}${rand() < v / 2 ? "!" : "."}`;
 
+  // Pitch and rate for one utterance: the chosen base, varied by up to
+  // ±0.3 in pitch and ±15 % in rate at full variation v, within what the
+  // speech engines accept.
+  function varyVoice({ pitch, rate }, v, rand = Math.random) {
+    const between = (lo, hi) => lo + rand() * (hi - lo);
+    const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    return {
+      pitch: clamp(pitch + between(-0.3, 0.3) * v, 0.1, 2),
+      rate: clamp(rate * (1 + between(-0.15, 0.15) * v), 0.3, 2),
+    };
+  }
+
   Object.assign(exports, {
+    varyVoice,
     say, lead, cap, phrase, choose, question,
     pick, praiseWord, lateRemark, insult, answerText, listenText
   });

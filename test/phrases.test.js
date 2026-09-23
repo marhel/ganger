@@ -89,3 +89,19 @@ test("listen mode reads the whole fact in one phrase", () => {
   assert.equal(P.listenText(7, 8, 56, 1, seq(0.1)), "7 gånger 8 är 56!");
   assert.equal(P.listenText(7, 8, 56, 1, seq(0.6)), "7 gånger 8 är 56.");
 });
+
+test("without variation the voice keeps its pitch and rate", () => {
+  assert.deepEqual(P.varyVoice({ pitch: 1, rate: 0.95 }, 0, seq(0.9)), { pitch: 1, rate: 0.95 });
+});
+
+test("variation moves pitch by up to ±0.3 and rate by up to ±15 %", () => {
+  const up = P.varyVoice({ pitch: 1, rate: 1 }, 1, seq(1));
+  assert.ok(Math.abs(up.pitch - 1.3) < 1e-9 && Math.abs(up.rate - 1.15) < 1e-9, JSON.stringify(up));
+  const down = P.varyVoice({ pitch: 1, rate: 1 }, 0.5, seq(0));
+  assert.ok(Math.abs(down.pitch - 0.85) < 1e-9 && Math.abs(down.rate - 0.925) < 1e-9, JSON.stringify(down));
+});
+
+test("pitch stays within 0.1-2 and rate within 0.3-2", () => {
+  assert.deepEqual(P.varyVoice({ pitch: 1.9, rate: 1.9 }, 1, seq(1)), { pitch: 2, rate: 2 });
+  assert.deepEqual(P.varyVoice({ pitch: 0.2, rate: 0.3 }, 1, seq(0)), { pitch: 0.1, rate: 0.3 });
+});
