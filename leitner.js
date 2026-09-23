@@ -67,7 +67,15 @@
     return unseen[0] || seen[0];
   }
 
+  // Earlier versions stored box numbers as 1000 + correct in a row.
+  function migrateOldBoxes(old) {
+    const streaks = {};
+    for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
+    return streaks;
+  }
+
   exports.pickBox = pickBox;
+  exports.migrateOldBoxes = migrateOldBoxes;
   exports.pickProblem = pickProblem;
   exports.nextStreak = nextStreak;
   exports.groupBoxes = groupBoxes;

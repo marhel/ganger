@@ -22,3 +22,22 @@ test("is empty when no table or no factor is chosen", () => {
   assert.deepEqual(buildPool([], [1, 2], true), []);
   assert.deepEqual(buildPool([1, 2], [], true), []);
 });
+
+const { parseSelection } = require("../problems.js");
+const all = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+test("a saved selection is read back", () => {
+  const s = parseSelection('{"tables":[2,3],"factors":[4],"inverted":false}');
+  assert.deepEqual([...s.tables], [2, 3]);
+  assert.deepEqual([...s.factors], [4]);
+  assert.equal(s.inverted, false);
+});
+
+test("without a saved selection, everything is chosen, inverted too", () => {
+  for (const json of [null, "", "not json", "null"]) {
+    const s = parseSelection(json);
+    assert.deepEqual([...s.tables], all, json);
+    assert.deepEqual([...s.factors], all, json);
+    assert.equal(s.inverted, true, json);
+  }
+});

@@ -365,17 +365,9 @@
 
   // ---------- which problems to practise ----------
   const SEL_KEY = "gangertabell-urval";
-  const sel = { tables: new Set(), factors: new Set(), inverted: true };
-  try {
-    const s = JSON.parse(localStorage.getItem(SEL_KEY) || "null");
-    if (s) {
-      sel.tables = new Set(s.tables);
-      sel.factors = new Set(s.factors);
-      sel.inverted = !!s.inverted;
-    } else throw 0;
-  } catch {
-    for (let i = 0; i <= 12; i++) { sel.tables.add(i); sel.factors.add(i); }
-  }
+  let savedSel = null;
+  try { savedSel = localStorage.getItem(SEL_KEY); } catch {}
+  const sel = Problems.parseSelection(savedSel);
   const invertedBox = document.getElementById("inverted");
   invertedBox.checked = sel.inverted;
 
@@ -407,7 +399,7 @@
     } else {
       // Migrate from the earlier box numbers (1000 + correct in a row).
       const old = JSON.parse(localStorage.getItem("gangertabell-lador") || "{}") || {};
-      for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
+      streaks = Leitner.migrateOldBoxes(old);
       localStorage.setItem(STREAK_KEY, JSON.stringify(streaks));
       localStorage.removeItem("gangertabell-lador");
     }

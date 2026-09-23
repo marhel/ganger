@@ -85,3 +85,11 @@ test("nextStreak adds one when correct, up to 5, and resets when wrong", () => {
   assert.equal(nextStreak(4, false), 0);
   assert.equal(nextStreak(undefined, false), 0);
 });
+
+const { migrateOldBoxes } = require("../leitner.js");
+
+test("old box numbers (1000 + correct in a row) become streaks 0-5", () => {
+  assert.deepEqual(migrateOldBoxes({ "2x3": 1000, "3x2": 1002, "4x4": 1009, "5x5": 3 }),
+    { "2x3": 0, "3x2": 2, "4x4": 5, "5x5": 0 });
+  assert.deepEqual(migrateOldBoxes({}), {});
+});

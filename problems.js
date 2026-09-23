@@ -20,5 +20,17 @@
     return pool;
   }
 
+  // The saved selection (JSON), or every table and factor 0-12, inverted
+  // too, when there is none.
+  function parseSelection(json) {
+    try {
+      const s = JSON.parse(json || "null");
+      if (s) return { tables: new Set(s.tables), factors: new Set(s.factors), inverted: !!s.inverted };
+    } catch {}
+    const all = () => new Set(Array.from({ length: 13 }, (_, i) => i));
+    return { tables: all(), factors: all(), inverted: true };
+  }
+
   exports.buildPool = buildPool;
+  exports.parseSelection = parseSelection;
 })(typeof module !== "undefined" ? module.exports : (window.Problems = {}));
