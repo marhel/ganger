@@ -317,6 +317,7 @@
 </main>
 
 <script src="leitner.js"></script>
+<script src="problems.js"></script>
 <script>
 (() => {
   const synth = window.speechSynthesis;
@@ -533,20 +534,9 @@
   }
 
   function buildPool() {
-    const seen = new Set();
-    pool = [];
-    const add = (a, b) => {
-      const k = a + "x" + b;
-      if (!seen.has(k)) { seen.add(k); pool.push([a, b]); }
-    };
-    for (const t of [...sel.tables].sort((x, y) => x - y)) {
-      for (const f of [...sel.factors].sort((x, y) => x - y)) {
-        add(t, f);
-        if (sel.inverted) add(f, t);
-      }
-    }
+    pool = Problems.buildPool(sel.tables, sel.factors, sel.inverted);
     updateBaseline();
-    if (last && !seen.has(keyOf(last))) roundBoxes = new Set();
+    if (last && !pool.some(p => keyOf(p) === keyOf(last))) roundBoxes = new Set();
     updatePoolInfo();
     renderBoxes();
   }
