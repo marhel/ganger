@@ -29,5 +29,13 @@
     return { correct, wrong, late, record: correct || wrong };
   }
 
-  Object.assign(exports, { thinkMs, waitOutcome, judge });
+  // The answer after pressing key: a digit is added (at most three digits),
+  // Backspace removes the last one. null for keys that don't edit answers.
+  function editAnswer(typed, key) {
+    if (/^[0-9]$/.test(key)) return typed.length < 3 ? typed + key : typed;
+    if (key === "Backspace") return typed.slice(0, -1);
+    return null;
+  }
+
+  Object.assign(exports, { thinkMs, waitOutcome, judge, editAnswer });
 })(typeof module !== "undefined" ? module.exports : (window.Judge = {}));

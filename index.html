@@ -960,13 +960,9 @@
   document.addEventListener("keydown", e => {
     if (dlg.open) return;   // the box dialog handles its own keys (Esc closes)
     if (e.target.tagName === "SELECT" || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (/^[0-9]$/.test(e.key)) {
-      if (accepting && typed.length < 3) { typed += e.key; typedAt = Date.now(); showTyped(); }
-      e.preventDefault();
-      return;
-    }
-    if (e.key === "Backspace") {
-      if (accepting && typed) { typed = typed.slice(0, -1); typedAt = Date.now(); showTyped(); }
+    const edited = Judge.editAnswer(typed, e.key);
+    if (edited !== null) {
+      if (accepting && edited !== typed) { typed = edited; typedAt = Date.now(); showTyped(); }
       e.preventDefault();
       return;
     }

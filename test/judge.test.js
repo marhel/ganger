@@ -48,3 +48,21 @@ test("judge: the start of the right answer when time ran out is late, not wrong"
 test("judge: no answer at all leaves the problem where it is", () => {
   assert.deepEqual(judge("", 56, "timeout"), { correct: false, wrong: false, late: false, record: false });
 });
+
+const { editAnswer } = require("../judge.js");
+
+test("digits are added to the answer, up to three", () => {
+  assert.equal(editAnswer("", "5"), "5");
+  assert.equal(editAnswer("5", "6"), "56");
+  assert.equal(editAnswer("144", "4"), "144");
+});
+
+test("backspace removes the last digit", () => {
+  assert.equal(editAnswer("56", "Backspace"), "5");
+  assert.equal(editAnswer("", "Backspace"), "");
+});
+
+test("other keys are not answer keys", () => {
+  assert.equal(editAnswer("5", "a"), null);
+  assert.equal(editAnswer("5", "Enter"), null);
+});
