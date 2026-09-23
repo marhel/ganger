@@ -3,14 +3,31 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { JSDOM, VirtualConsole } = require("jsdom");
+const fs = require("node:fs");
+const { JSDOM, VirtualConsole, requestInterceptor } = require("jsdom");
 
-async function loadPage() {
+// Serves the project's files as http://ganger.test/..., since pages from
+// file: URLs get no localStorage in jsdom. Anything else (the web fonts)
+// gets an empty answer, so the tests never touch the network.
+const ROOT = path.join(__dirname, "..");
+const BASE = "http://ganger.test/";
+const serveFiles = requestInterceptor(request => {
+  if (!request.url.startsWith(BASE)) return new Response("");
+  const body = fs.readFileSync(path.join(ROOT, new URL(request.url).pathname));
+  return new Response(body, { headers: { "Content-Type": "text/javascript" } });
+});
+
+async function loadPage(storage = {}) {
   const errors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on("jsdomError", e => errors.push(e));
-  const dom = await JSDOM.fromFile(path.join(__dirname, "..", "index.html"), {
-    runScripts: "dangerously", resources: "usable", pretendToBeVisual: true, virtualConsole
+  const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const dom = new JSDOM(html, {
+    url: BASE + "index.html", resources: { interceptors: [serveFiles] },
+    runScripts: "dangerously", pretendToBeVisual: true, virtualConsole,
+    beforeParse(window) {
+      for (const k in storage) window.localStorage.setItem(k, JSON.stringify(storage[k]));
+    }
   });
   await new Promise(r => dom.window.addEventListener("load", r));
   return { dom, doc: dom.window.document, errors };
@@ -91,5 +108,42 @@ test("clicking a box lists its problems", async () => {
     const items = doc.querySelectorAll("#dlglist li");
     assert.equal(items.length, 169);
     assert.equal(items[0].textContent, "0 × 0ny");
+  } finally { dom.window.close(); }
+});
+
+test("the saved selection, boxes and settings are read at start", async () => {
+  const { dom, doc, errors } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x3": 1, "2x4": 5 },
+    "gangertabell-settings": { reviewEvery: "4" }
+  });
+  try {
+    assert.deepEqual(errors.map(e => e.message), []);
+    assert.deepEqual(boxCounts(doc), [0, 1, 0, 0, 0, 1]);
+    assert.equal(doc.getElementById("reviewEvery").value, "4");
+    assert.equal(doc.getElementById("reviewOut").textContent, "4");
+  } finally { dom.window.close(); }
+});
+
+test("old box numbers are migrated", async () => {
+  const { dom, doc } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-lador": { "2x3": 1002 }
+  });
+  try {
+    assert.deepEqual(boxCounts(doc), [1, 0, 1, 0, 0, 0]);
+    assert.equal(dom.window.localStorage.getItem("gangertabell-lador"), null);
+  } finally { dom.window.close(); }
+});
+
+test("moving the review slider saves it", async () => {
+  const { dom, doc } = await loadPage();
+  try {
+    const slider = doc.getElementById("reviewEvery");
+    slider.value = "7";
+    slider.dispatchEvent(new dom.window.Event("input"));
+    assert.equal(doc.getElementById("reviewOut").textContent, "7");
+    const saved = JSON.parse(dom.window.localStorage.getItem("gangertabell-settings"));
+    assert.equal(saved.reviewEvery, "7");
   } finally { dom.window.close(); }
 });
