@@ -318,6 +318,7 @@
 
 <script src="leitner.js"></script>
 <script src="problems.js"></script>
+<script src="phrases.js"></script>
 <script>
 (() => {
   const synth = window.speechSynthesis;
@@ -639,32 +640,13 @@
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-  // First entry of each list is the "neutral" form used when variation is 0.
-  // Flavor text may only come BEFORE the question and AFTER the answer,
-  // so "a gånger b" is always immediately followed by the answer.
-  // After a verb, "ett" is read as an article ("är ett bord"),
-  // so we add a colon to force a pause before it.
-  const lead = (intro, a) => a === "ett" ? `${intro}: ${a}` : `${intro} ${a}`;
-
-  const questionTemplates = [
-    (a, b) => `${a} gånger ${b}?`,
-    (a, b) => `${lead("Vad blir", a)} gånger ${b}?`,
-    (a, b) => `${lead("Hur mycket är", a)} gånger ${b}?`,
-    (a, b) => `Okej, ${a} gånger ${b}?`,
-    (a, b) => `Och ${a} gånger ${b}?`,
-    (a, b) => `Nästa: ${a} gånger ${b}?`,
-  ];
+  // Texts to speak, see phrases.js.
+  const { say, cap, phrase, choose } = Phrases;
   // The answer is spoken bare. Only punctuation varies, to nudge intonation.
   const answerTemplates = [
     (a, b, c) => `${c}.`,
     (a, b, c) => `${c}!`,
   ];
-
-  function choose(list, v) {
-    // v in [0,1]; the chance of leaving the neutral form grows with v.
-    if (Math.random() >= v) return list[0];
-    return list[1 + Math.floor(Math.random() * (list.length - 1))];
-  }
 
   function voiceParams(voice) {
     const v = els.variation.value / 100;
@@ -674,9 +656,6 @@
       voice
     };
   }
-
-  // A lone 1 is read as "en" by most engines; we want "ett".
-  const say = n => n === 1 ? "ett" : String(n);
 
   // ---------- speaking ----------
   function speak(text, params, timeoutMs) {
@@ -824,15 +803,6 @@
     "inte i närheten", "verkligen inte", "pinsamt", "inte ens nära", "inte riktigt",
     "jag förstår inte hur du tänker", "absolut inte", "knappast"];
   const insultOpeners = ["va?", "jasså?", "verkligen?", "det tror du?", "nää!", "hoppsan", "aj aj aj", "hallå?"];
-  const cap = t => t[0].toUpperCase() + t.slice(1);
-  const endsSentence = t => /[?!]$/.test(t);
-  function phrase(parts, end = ".") {
-    let out = cap(parts[0]);
-    for (let i = 1; i < parts.length; i++) {
-      out += endsSentence(parts[i - 1]) ? " " + cap(parts[i]) : ", " + parts[i];
-    }
-    return endsSentence(parts[parts.length - 1]) ? out : out + end;
-  }
   const N = () => pick(insultNouns), A = () => pick(insultAdjectives);
   const V = () => pick(insultVerdicts), U = () => pick(insultOpeners);
   const insultTemplates = [
@@ -972,7 +942,7 @@
     // Typing is allowed already while the question is read, so a quick
     // answer isn't lost by starting a moment too early.
     accepting = true;
-    const qText = choose(questionTemplates, v)(say(a), say(b));
+    const qText = Phrases.question(a, b, v);
     const qParams = voiceParams(voice);
     els.spoken.textContent = spoken(qText, qParams);
     await speak(qText, qParams);
