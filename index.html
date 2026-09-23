@@ -312,6 +312,7 @@
   </details>
 </main>
 
+<script src="leitner.js"></script>
 <script>
 (() => {
   const synth = window.speechSynthesis;
@@ -495,15 +496,11 @@
     const { groups } = groupBoxes();
     const notLast = p => !(last && keyOf(p) === keyOf(last));
     // Non-empty boxes, skipping a box whose only problem is the one just asked.
-    const nonEmpty = groups.map((g, i) => i).filter(i => groups[i].length);
-    let candidates = nonEmpty.filter(i => groups[i].some(notLast));
-    if (!candidates.length) candidates = nonEmpty;
-    const weights = candidates.map(i => Math.pow(2, -i));
-    let r = Math.random() * weights.reduce((x, y) => x + y, 0);
-    let k = 0;
-    while (k < weights.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
-    let items = groups[candidates[k]].filter(notLast);
-    if (!items.length) items = groups[candidates[k]];
+    let counts = groups.map(g => g.filter(notLast).length);
+    if (counts.every(c => !c)) counts = groups.map(g => g.length);
+    const box = Leitner.pickBox(counts);
+    let items = groups[box].filter(notLast);
+    if (!items.length) items = groups[box];
 
     const unseen = shuffle(items.filter(isUnseen));
     const seen = shuffle(items.filter(p => !isUnseen(p)));
