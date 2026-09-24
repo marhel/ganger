@@ -175,3 +175,18 @@ test("'Börja om' needs a second click, then empties the boxes", async () => {
     assert.deepEqual(boxCounts(doc), [169, 0, 0, 0, 0, 0]);
   } finally { dom.window.close(); }
 });
+
+test("an answer is saved as [box, due], and such entries are read back", async () => {
+  const { dom, doc } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x3": [3, 1234] }
+  });
+  try {
+    assert.deepEqual(boxCounts(doc), [1, 0, 0, 1, 0, 0]);
+    const before = Date.now();
+    await answerOnce(doc, dom.window, c => c);   // 2 x 4, the only one in box 0
+    const [box, due] = JSON.parse(dom.window.localStorage.getItem("gangertabell-irad"))["2x4"];
+    assert.equal(box, 1);
+    assert.ok(due >= before + 4 * 60e3 && due <= Date.now() + 6 * 60e3, String(due - before));
+  } finally { dom.window.close(); }
+});

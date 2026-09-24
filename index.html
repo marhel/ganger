@@ -405,7 +405,7 @@
     }
   } catch { streaks = {}; }
   const isUnseen = p => streaks[keyOf(p)] === undefined;
-  const boxOf = p => streaks[keyOf(p)] ?? 0;   // box index 0..5
+  const boxOf = p => Leitner.readEntry(streaks[keyOf(p)])?.box ?? 0;   // box index 0..5
   function saveBoxes() {
     try { localStorage.setItem(STREAK_KEY, JSON.stringify(streaks)); } catch {}
   }
@@ -465,7 +465,8 @@
   dlg.addEventListener("click", e => { if (e.target === dlg) closeBox(); });
 
   function recordResult(p, correct) {
-    streaks[keyOf(p)] = Leitner.nextStreak(streaks[keyOf(p)], correct);
+    const entry = Leitner.readEntry(streaks[keyOf(p)]);
+    streaks[keyOf(p)] = Leitner.writeEntry(Leitner.answer(entry, correct, Date.now()));
     roundBoxes = new Set([boxOf(p)]);
     saveBoxes();
     renderBoxes();

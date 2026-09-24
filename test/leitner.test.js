@@ -4,6 +4,8 @@ const { pickBox } = require("../leitner.js");
 
 // counts[i] is the number of problems that can be asked from box i.
 const fixed = r => () => r;
+// A random source that returns the given values in turn, cycling.
+const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length]; };
 
 test("asks from the lowest non-empty box, whatever the other boxes hold", () => {
   assert.equal(pickBox([90, 2, 1, 0, 0, 0], 1, 10, fixed(0.99)), 0);
@@ -27,7 +29,7 @@ test("the review interval is a parameter", () => {
   assert.equal(pickBox(counts, 10, 3, fixed(0.5)), 0);
 });
 
-const { pickProblem, nextStreak } = require("../leitner.js");
+const { pickProblem } = require("../leitner.js");
 
 const ask = opts => pickProblem({
   pool: [], streaks: {}, lastAsked: new Map(), last: null, n: 1, reviewEvery: 10,
@@ -78,13 +80,6 @@ test("pickProblem reviews a higher box on every reviewEvery-th question", () => 
   assert.deepEqual(ask({ pool, streaks, n: 5, reviewEvery: 4 }), [1, 1]);
 });
 
-test("nextStreak adds one when correct, up to 5, and resets when wrong", () => {
-  assert.equal(nextStreak(undefined, true), 1);
-  assert.equal(nextStreak(2, true), 3);
-  assert.equal(nextStreak(5, true), 5);
-  assert.equal(nextStreak(4, false), 0);
-  assert.equal(nextStreak(undefined, false), 0);
-});
 
 const { migrateOldBoxes } = require("../leitner.js");
 
@@ -124,4 +119,50 @@ test("problems in box 0 are marked new or wrong last time", () => {
   assert.equal(itemNote(0, true), "ny");
   assert.equal(itemNote(0, false), "fel senast");
   assert.equal(itemNote(3, false), "");
+});
+
+const { readEntry, writeEntry, answer, groupBoxes } = require("../leitner.js");
+const MIN = 60 * 1000, DAY = 24 * 60 * MIN;
+
+test("a stored entry is [box, due]; a lone number is a box, due long ago", () => {
+  assert.deepEqual(readEntry([2, 1234]), { box: 2, due: 1234 });
+  assert.deepEqual(readEntry(3), { box: 3, due: 0 });
+  assert.equal(readEntry(undefined), null);   // never answered
+});
+
+test("an entry is written as [box, due]", () => {
+  assert.deepEqual(writeEntry({ box: 2, due: 1234 }), [2, 1234]);
+});
+
+test("a correct answer moves the problem up a box, a wrong one to box 0", () => {
+  const now = 1e12, mid = seq(0.5);
+  assert.equal(answer(null, true, now, mid).box, 1);
+  assert.equal(answer({ box: 2, due: 0 }, true, now, mid).box, 3);
+  assert.equal(answer({ box: 5, due: 0 }, true, now, mid).box, 5);
+  assert.equal(answer({ box: 4, due: 0 }, false, now, mid).box, 0);
+  assert.equal(answer(null, false, now, mid).box, 0);
+});
+
+test("the problem is due again after its new box's interval", () => {
+  const now = 1e12, mid = seq(0.5);
+  const dueIn = (entry, correct) => answer(entry, correct, now, mid).due - now;
+  assert.equal(dueIn({ box: 3, due: 0 }, false), 1 * MIN);
+  assert.equal(dueIn(null, true), 5 * MIN);
+  assert.equal(dueIn({ box: 1, due: 0 }, true), 30 * MIN);
+  assert.equal(dueIn({ box: 2, due: 0 }, true), 1 * DAY);
+  assert.equal(dueIn({ box: 3, due: 0 }, true), 3 * DAY);
+  assert.equal(dueIn({ box: 4, due: 0 }, true), 10 * DAY);
+  assert.equal(dueIn({ box: 5, due: 0 }, true), 10 * DAY);
+});
+
+test("the interval is spread by ±20 %", () => {
+  const now = 1e12;
+  assert.equal(answer(null, true, now, seq(0)).due - now, 4 * MIN);
+  assert.equal(answer(null, true, now, seq(1)).due - now, 6 * MIN);
+});
+
+test("groupBoxes reads both stored forms", () => {
+  const pool = [[1, 1], [1, 2], [1, 3]];
+  const groups = groupBoxes(pool, { "1x1": 2, "1x2": [4, 1234] });
+  assert.deepEqual(groups.map(g => g.length), [1, 0, 1, 0, 1, 0]);
 });

@@ -5,11 +5,26 @@
   const MAX_STREAK = BOXES - 1;
   const keyOf = p => p[0] + "x" + p[1];
 
-  // Each problem (2x3 and 3x2 separately) keeps its number of correct
-  // answers in a row, capped at 5: correct -> +1, wrong -> 0.
-  // A problem never answered has no streak (undefined) and lives in box 0.
-  const nextStreak = (streak, correct) => correct ? Math.min(MAX_STREAK, (streak ?? 0) + 1) : 0;
-  const boxOf = (streaks, p) => streaks[keyOf(p)] ?? 0;
+  // Each problem (2x3 and 3x2 separately) has an entry: its box, which is
+  // its number of correct answers in a row capped at 5, and when it is due
+  // (ms since 1970). It is stored as [box, due]. Earlier versions stored the
+  // box alone; such an entry is due since long ago. A problem never answered
+  // has no entry and lives in box 0.
+  const readEntry = v => v === undefined ? null : Array.isArray(v) ? { box: v[0], due: v[1] } : { box: v, due: 0 };
+  const writeEntry = ({ box, due }) => [box, due];
+  const boxOf = (streaks, p) => readEntry(streaks[keyOf(p)])?.box ?? 0;
+
+  // How long until a problem in each box is due again.
+  const MIN = 60 * 1000, DAY = 24 * 60 * MIN;
+  const INTERVALS = [1 * MIN, 5 * MIN, 30 * MIN, 1 * DAY, 3 * DAY, 10 * DAY];
+
+  // A correct answer moves the problem up a box (at most 5), a wrong one to
+  // box 0. It is then due after its box's interval, spread by ±20 % so that
+  // problems answered together don't all come back together.
+  function answer(entry, correct, now, rand = Math.random) {
+    const box = correct ? Math.min(MAX_STREAK, (entry?.box ?? 0) + 1) : 0;
+    return { box, due: now + Math.round(INTERVALS[box] * (0.8 + 0.4 * rand())) };
+  }
 
   // The problems of the pool in each of the six boxes (some may be empty).
   function groupBoxes(pool, streaks) {
@@ -86,7 +101,8 @@
   const itemNote = (i, unseen) => unseen ? "ny" : i === 0 ? "fel senast" : "";
 
   Object.assign(exports, {
-    BOXES, MAX_STREAK, keyOf, nextStreak, groupBoxes, migrateOldBoxes,
+    readEntry, writeEntry, answer,
+    BOXES, MAX_STREAK, keyOf, groupBoxes, migrateOldBoxes,
     pickBox, pickProblem, boxName, countText, boxSummary, itemNote
   });
 })(typeof module !== "undefined" ? module.exports : (window.Leitner = {}));
