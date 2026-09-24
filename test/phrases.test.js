@@ -105,3 +105,8 @@ test("pitch stays within 0.1-2 and rate within 0.3-2", () => {
   assert.deepEqual(P.varyVoice({ pitch: 1.9, rate: 1.9 }, 1, seq(1)), { pitch: 2, rate: 2 });
   assert.deepEqual(P.varyVoice({ pitch: 0.2, rate: 0.3 }, 1, seq(0)), { pitch: 0.1, rate: 0.3 });
 });
+
+test("the rest announcement says when the next problem is due and how to go on", () => {
+  assert.equal(P.restedText("om 10 minuter"),
+    "Du har övat klart! Nästa uppgift är dags om 10 minuter. Tryck på Starta om du vill öva ändå.");
+});

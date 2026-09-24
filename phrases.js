@@ -129,8 +129,12 @@
     };
   }
 
+  // Said when nothing is due and nothing is new, before practice pauses.
+  const restedText = until =>
+    `Du har övat klart! Nästa uppgift är dags ${until}. Tryck på Starta om du vill öva ändå.`;
+
   Object.assign(exports, {
-    varyVoice,
+    restedText, varyVoice,
     say, lead, cap, phrase, choose, question,
     pick, praiseWord, lateRemark, insult, answerText, listenText
   });

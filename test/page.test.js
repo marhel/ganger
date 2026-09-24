@@ -206,3 +206,68 @@ test("when nothing is due or new, it says so, and practising ahead keeps the box
     assert.deepEqual(boxCounts(doc), [0, 0, 2, 0, 0, 0]);
   } finally { dom.window.close(); }
 });
+
+// Waits until cond() holds, or about 4 s.
+async function until(cond) {
+  for (let i = 0; i < 400 && !cond(); i++) await new Promise(r => setTimeout(r, 10));
+}
+
+test("starting when everything rests announces it and pauses; starting again goes on", async () => {
+  const soon = Date.now() + 10 * 60e3;
+  const { dom, doc, errors } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x3": [2, soon], "2x4": [2, soon + 60e3] }
+  });
+  try {
+    const toggle = doc.getElementById("toggle");
+    const spoken = doc.getElementById("spoken");
+    toggle.click();
+    await until(() => spoken.textContent.startsWith("Du har övat klart!") && toggle.textContent === "Starta");
+    assert.deepEqual(errors.map(e => e.message), []);
+    assert.equal(spoken.textContent,
+      "Du har övat klart! Nästa uppgift är dags om 10 minuter. Tryck på Starta om du vill öva ändå.");
+    assert.equal(toggle.textContent, "Starta");
+    assert.equal(doc.getElementById("a").textContent, "?");
+
+    toggle.click();
+    await until(() => doc.getElementById("a").textContent !== "?");
+    assert.equal(toggle.textContent, "Pausa");
+    assert.match(doc.getElementById("a").textContent, /^[0-9]+$/);
+    toggle.click();
+  } finally { dom.window.close(); }
+});
+
+test("running out of due and new problems while practising announces it and pauses", async () => {
+  const later = Date.now() + 10 * 60e3;
+  const { dom, doc } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x4": [2, later] },
+    "gangertabell-settings": { wait: "0.5" }
+  });
+  try {
+    const toggle = doc.getElementById("toggle");
+    const spoken = doc.getElementById("spoken");
+    toggle.click();
+    await until(() => doc.getElementById("a").textContent === "2");   // 2 x 3, the new one
+    doc.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "6", bubbles: true }));
+    await until(() => spoken.textContent.startsWith("Du har övat klart!"));
+    assert.match(spoken.textContent, /^Du har övat klart! Nästa uppgift är dags om [4-6] minuter\./);
+    await until(() => toggle.textContent === "Starta");
+    assert.equal(toggle.textContent, "Starta");
+    assert.deepEqual(boxCounts(doc), [0, 1, 1, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});
+
+test("'Ett tal' does not pause for the rest announcement", async () => {
+  const soon = Date.now() + 10 * 60e3;
+  const { dom, doc } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x3": [2, soon], "2x4": [2, soon + 60e3] }
+  });
+  try {
+    doc.getElementById("once").click();
+    await until(() => doc.getElementById("a").textContent !== "?");
+    assert.match(doc.getElementById("a").textContent, /^[0-9]+$/);
+    assert.doesNotMatch(doc.getElementById("spoken").textContent, /^Du har övat klart!/);
+  } finally { dom.window.close(); }
+});

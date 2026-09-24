@@ -253,7 +253,7 @@
       <button type="button" class="link" id="resetBoxes">Börja om</button>
     </div>
     <div class="boxes-scroll"><div class="boxes" id="boxes"></div></div>
-    <p class="hint" id="boxhint">Lådans nummer är hur många rätt i rad uppgiften har: låda 0 är nya eller fel senast, låda 5+ är fem rätt i rad eller fler. Rätt svar flyttar uppgiften en låda åt höger, fel svar tillbaka till låda 0, och utan svar ligger den kvar. Efter ett svar väntar uppgiften innan den frågas igen, längre ju högre låda: en minut i låda 0, fem minuter i låda 1, en halvtimme i låda 2, ett dygn i låda 3, tre dygn i låda 4 och tio dygn i låda 5+. Först frågas de uppgifter som har väntat klart, den som väntat längst först, sedan nya uppgifter. Samma uppgift kommer aldrig tillbaka förrän minst fyra andra har frågats. Har allt väntat för kort tid och finns inga nya uppgifter fortsätter övningen ändå, men då flyttar ett rätt svar inte upp uppgiften. Den blå lådan visar var den aktuella uppgiften ligger. Klicka på en låda för att se vilka uppgifter den innehåller.</p>
+    <p class="hint" id="boxhint">Lådans nummer är hur många rätt i rad uppgiften har: låda 0 är nya eller fel senast, låda 5+ är fem rätt i rad eller fler. Rätt svar flyttar uppgiften en låda åt höger, fel svar tillbaka till låda 0, och utan svar ligger den kvar. Efter ett svar väntar uppgiften innan den frågas igen, längre ju högre låda: en minut i låda 0, fem minuter i låda 1, en halvtimme i låda 2, ett dygn i låda 3, tre dygn i låda 4 och tio dygn i låda 5+. Först frågas de uppgifter som har väntat klart, den som väntat längst först, sedan nya uppgifter. Samma uppgift kommer aldrig tillbaka förrän minst fyra andra har frågats. Har allt väntat för kort tid och finns inga nya uppgifter säger appen att du har övat klart och pausar. Startar du igen fortsätter övningen ändå, men då flyttar ett rätt svar inte upp uppgiften. Den blå lådan visar var den aktuella uppgiften ligger. Klicka på en låda för att se vilka uppgifter den innehåller.</p>
   </section>
 
   <dialog class="boxdlg" id="boxdlg" aria-labelledby="dlgtitle">
@@ -804,7 +804,27 @@
     els.bar.style.width = "0";
   }
 
+  // Once everything has been practised (nothing due, nothing new), practice
+  // says so and pauses, once. Starting again goes on ahead of time, without
+  // pausing, until something has been due or new and everything rests again.
+  let restAnnounced = false;
+  async function pauseForRest(id) {
+    const now = Date.now();
+    const until = Leitner.restingUntil(pool, entries, now);
+    if (until === null) { restAnnounced = false; return false; }
+    if (restAnnounced) return false;
+    restAnnounced = true;
+    showRested(now);
+    const text = Phrases.restedText(Leitner.untilText(until - now));
+    els.spoken.textContent = text;
+    await speak(text, voiceParams(pickVoice()));
+    if (id === runId) stop();
+    return true;
+  }
+
   async function round(id) {
+    // Only practice pauses; listening and a single problem go on.
+    if (running && !listenMode && await pauseForRest(id)) return false;
     const problem = newProblem();
     if (!problem) {
       stop();
