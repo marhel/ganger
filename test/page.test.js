@@ -115,13 +115,13 @@ test("the saved selection, boxes and settings are read at start", async () => {
   const { dom, doc, errors } = await loadPage({
     "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
     "gangertabell-irad": { "2x3": 1, "2x4": 5 },
-    "gangertabell-settings": { reviewEvery: "4" }
+    "gangertabell-settings": { wait: "2" }
   });
   try {
     assert.deepEqual(errors.map(e => e.message), []);
     assert.deepEqual(boxCounts(doc), [0, 1, 0, 0, 0, 1]);
-    assert.equal(doc.getElementById("reviewEvery").value, "4");
-    assert.equal(doc.getElementById("reviewOut").textContent, "4");
+    assert.equal(doc.getElementById("wait").value, "2");
+    assert.equal(doc.getElementById("waitOut").textContent, "2 s");
   } finally { dom.window.close(); }
 });
 
@@ -136,15 +136,15 @@ test("old box numbers are migrated", async () => {
   } finally { dom.window.close(); }
 });
 
-test("moving the review slider saves it", async () => {
+test("moving a slider saves it", async () => {
   const { dom, doc } = await loadPage();
   try {
-    const slider = doc.getElementById("reviewEvery");
+    const slider = doc.getElementById("wait");
     slider.value = "7";
     slider.dispatchEvent(new dom.window.Event("input"));
-    assert.equal(doc.getElementById("reviewOut").textContent, "7");
+    assert.equal(doc.getElementById("waitOut").textContent, "7 s");
     const saved = JSON.parse(dom.window.localStorage.getItem("gangertabell-settings"));
-    assert.equal(saved.reviewEvery, "7");
+    assert.equal(saved.wait, "7");
   } finally { dom.window.close(); }
 });
 
@@ -179,12 +179,12 @@ test("'Börja om' needs a second click, then empties the boxes", async () => {
 test("an answer is saved as [box, due], and such entries are read back", async () => {
   const { dom, doc } = await loadPage({
     "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
-    "gangertabell-irad": { "2x3": [3, 1234] }
+    "gangertabell-irad": { "2x3": [3, Date.now() + 60e3] }
   });
   try {
     assert.deepEqual(boxCounts(doc), [1, 0, 0, 1, 0, 0]);
     const before = Date.now();
-    await answerOnce(doc, dom.window, c => c);   // 2 x 4, the only one in box 0
+    await answerOnce(doc, dom.window, c => c);   // 2 x 4, new, since 2 x 3 is not due
     const [box, due] = JSON.parse(dom.window.localStorage.getItem("gangertabell-irad"))["2x4"];
     assert.equal(box, 1);
     assert.ok(due >= before + 4 * 60e3 && due <= Date.now() + 6 * 60e3, String(due - before));

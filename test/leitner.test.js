@@ -1,89 +1,70 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { pickBox } = require("../leitner.js");
 
 // counts[i] is the number of problems that can be asked from box i.
 const fixed = r => () => r;
 // A random source that returns the given values in turn, cycling.
 const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length]; };
 
-test("asks from the lowest non-empty box, whatever the other boxes hold", () => {
-  assert.equal(pickBox([90, 2, 1, 0, 0, 0], 1, 10, fixed(0.99)), 0);
-  assert.equal(pickBox([0, 5, 3, 0, 0, 80], 7, 10, fixed(0.99)), 1);
-});
-
-test("every 10th question reviews a higher box, weighted count/2^i", () => {
-  // Box 1: 2 * 1/2 = 1, box 2: 1 * 1/4 = 0.25, so box 1 below 0.8.
-  const counts = [90, 2, 1, 0, 0, 0];
-  assert.equal(pickBox(counts, 10, 10, fixed(0.5)), 1);
-  assert.equal(pickBox(counts, 20, 10, fixed(0.9)), 2);
-});
-
-test("a review with no higher box asks from the only box", () => {
-  assert.equal(pickBox([0, 0, 3, 0, 0, 0], 10, 10, fixed(0.99)), 2);
-});
-
-test("the review interval is a parameter", () => {
-  const counts = [90, 2, 1, 0, 0, 0];
-  assert.equal(pickBox(counts, 3, 3, fixed(0.5)), 1);
-  assert.equal(pickBox(counts, 10, 3, fixed(0.5)), 0);
-});
-
 const { pickProblem } = require("../leitner.js");
 
+// Question 100 at time 1000000, nothing asked recently unless given.
 const ask = opts => pickProblem({
-  pool: [], entries: {}, lastAsked: new Map(), last: null, n: 1, reviewEvery: 10,
+  pool: [], entries: {}, lastAsked: new Map(), question: 100, now: 1e6,
   rand: fixed(0.3), ...opts
 });
+const A = [1, 1], B = [1, 2], C = [1, 3];
 
 test("pickProblem returns null for an empty pool", () => {
   assert.equal(ask({ pool: [] }), null);
 });
 
-test("pickProblem avoids the problem just asked when there is another", () => {
-  const pool = [[2, 3], [3, 2]];
-  for (const r of [0, 0.3, 0.7, 0.99]) {
-    assert.deepEqual(ask({ pool, last: [2, 3], rand: fixed(r) }), [3, 2]);
-  }
+test("pickProblem asks the most overdue problem", () => {
+  const entries = { "1x1": [1, 5e5], "1x2": [0, 2e5], "1x3": [2, 9e5] };
+  assert.deepEqual(ask({ pool: [A, B, C], entries }), B);
 });
 
-test("pickProblem asks the same problem again when it is the only one", () => {
-  assert.deepEqual(ask({ pool: [[2, 3]], last: [2, 3] }), [2, 3]);
+test("among problems due equally long, the lowest box goes first", () => {
+  const entries = { "1x1": 3, "1x2": 1, "1x3": 2 };   // old format: due since 1970
+  assert.deepEqual(ask({ pool: [A, B, C], entries }), B);
 });
 
-test("pickProblem moves on to the next box when the lowest only holds the last problem", () => {
-  const pool = [[1, 1], [1, 2]];
-  const entries = { "1x1": 0, "1x2": 1 };
-  assert.deepEqual(ask({ pool, entries, last: [1, 1] }), [1, 2]);
+test("a due problem goes before a new one", () => {
+  assert.deepEqual(ask({ pool: [A, B], entries: { "1x2": [4, 9e5] } }), B);
 });
 
-test("pickProblem lets new and answered problems take turns in a box", () => {
-  const pool = [[1, 1], [1, 2]];
-  const entries = { "1x2": 0 };   // 1x1 is new, 1x2 was wrong last time
-  assert.deepEqual(ask({ pool, entries, rand: fixed(0.3) }), [1, 1]);
-  assert.deepEqual(ask({ pool, entries, rand: fixed(0.7) }), [1, 2]);
+test("a new problem goes before one that is not due yet", () => {
+  assert.deepEqual(ask({ pool: [A, B], entries: { "1x2": [0, 2e6] } }), A);
 });
 
-test("pickProblem asks the answered problem asked longest ago", () => {
-  const pool = [[1, 1], [1, 2], [1, 3]];
-  const entries = { "1x1": 0, "1x2": 0, "1x3": 0 };
-  const lastAsked = new Map([["1x1", 5], ["1x2", 2], ["1x3", 9]]);
-  assert.deepEqual(ask({ pool, entries, lastAsked }), [1, 2]);
-  lastAsked.delete("1x3");   // not asked since the page was loaded: first
-  assert.deepEqual(ask({ pool, entries, lastAsked }), [1, 3]);
+test("new problems are taken in random order", () => {
+  const pool = [A, B, C];
+  const picked = [0, 0.4, 0.9].map(r => ask({ pool, rand: fixed(r) }));
+  assert.equal(new Set(picked.map(String)).size, 3, JSON.stringify(picked));
 });
 
-test("pickProblem reviews a higher box on every reviewEvery-th question", () => {
-  const pool = [[1, 1], [1, 2]];
-  const entries = { "1x2": 3 };
-  assert.deepEqual(ask({ pool, entries, n: 4, reviewEvery: 4 }), [1, 2]);
-  assert.deepEqual(ask({ pool, entries, n: 5, reviewEvery: 4 }), [1, 1]);
+test("with nothing due and nothing new, the problem due soonest is asked", () => {
+  const entries = { "1x1": [2, 5e6], "1x2": [1, 3e6] };
+  assert.deepEqual(ask({ pool: [A, B], entries }), B);
 });
 
+test("a problem is not asked again until four others have been", () => {
+  const entries = { "1x1": [0, 0], "1x2": [3, 9e5] };   // 1x1 is the most overdue
+  const after = q => ask({ pool: [A, B], entries, lastAsked: new Map([["1x1", q]]) });
+  assert.deepEqual(after(99), B);   // just asked
+  assert.deepEqual(after(96), B);   // three others since
+  assert.deepEqual(after(95), A);   // four others since
+});
+
+test("when every problem was asked recently, the one asked longest ago is asked", () => {
+  const lastAsked = new Map([["1x1", 99], ["1x2", 97], ["1x3", 98]]);
+  assert.deepEqual(ask({ pool: [A, B, C], lastAsked }), B);
+  assert.deepEqual(ask({ pool: [A], lastAsked }), A);
+});
 
 const { migrateOldBoxes } = require("../leitner.js");
 
-test("old box numbers (1000 + correct in a row) become entries 0-5", () => {
+test("old box numbers (1000 + correct in a row) become boxes 0-5", () => {
   assert.deepEqual(migrateOldBoxes({ "2x3": 1000, "3x2": 1002, "4x4": 1009, "5x5": 3 }),
     { "2x3": 0, "3x2": 2, "4x4": 5, "5x5": 0 });
   assert.deepEqual(migrateOldBoxes({}), {});

@@ -40,23 +40,6 @@
     return entries;
   }
 
-  // counts[i] is the number of problems that can be asked from box i,
-  // n is the question number (1, 2, ...). Asks from the lowest non-empty
-  // box, except every reviewEvery-th question, which reviews one of the
-  // higher boxes.
-  // A review picks box i with weight count/2^i, so each problem in box 1
-  // is twice as likely as one in box 2, and so on.
-  function pickBox(counts, n, reviewEvery, rand = Math.random) {
-    const nonEmpty = counts.map((c, i) => i).filter(i => counts[i] > 0);
-    const higher = nonEmpty.slice(1);
-    if (n % reviewEvery !== 0 || !higher.length) return nonEmpty[0];
-    const weights = higher.map(i => counts[i] * Math.pow(2, -i));
-    let r = rand() * weights.reduce((x, y) => x + y, 0);
-    let k = 0;
-    while (k < weights.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
-    return higher[k];
-  }
-
   function shuffle(arr, rand) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(rand() * (i + 1));
@@ -65,28 +48,30 @@
     return arr;
   }
 
-  // Picks the next problem: a box with pickBox, then within the box
-  // never-answered and answered problems take turns (half the draws each
-  // when both exist); among the answered ones, the problem asked longest ago
-  // (lastAsked: key -> question number) wins. The problem just asked is
-  // skipped when there is any other.
-  function pickProblem({ pool, entries, lastAsked, last, n, reviewEvery, rand = Math.random }) {
-    if (!pool.length) return null;
-    const groups = groupBoxes(pool, entries);
-    const isUnseen = p => entries[keyOf(p)] === undefined;
-    const notLast = p => !(last && keyOf(p) === keyOf(last));
-    // Non-empty boxes, skipping a box whose only problem is the one just asked.
-    let counts = groups.map(g => g.filter(notLast).length);
-    if (counts.every(c => !c)) counts = groups.map(g => g.length);
-    const box = pickBox(counts, n, reviewEvery, rand);
-    let items = groups[box].filter(notLast);
-    if (!items.length) items = groups[box];
+  // A problem is not asked again until this many others have been.
+  const MIN_GAP = 4;
 
-    const unseen = shuffle(items.filter(isUnseen), rand);
-    const seen = shuffle(items.filter(p => !isUnseen(p)), rand);
-    seen.sort((x, y) => (lastAsked.get(keyOf(x)) ?? -1) - (lastAsked.get(keyOf(y)) ?? -1));
-    if (unseen.length && seen.length) return rand() < 0.5 ? unseen[0] : seen[0];
-    return unseen[0] || seen[0];
+  // Picks the next problem for question number `question` at time `now`.
+  // lastAsked maps a problem's key to the number of the question it was
+  // last asked in. Among the problems not asked in the last MIN_GAP
+  // questions, it takes
+  //   1. the most overdue one (the lowest box first among equally overdue),
+  //   2. else a new one, at random,
+  //   3. else the one due soonest.
+  // If every problem was asked that recently, the one asked longest ago.
+  function pickProblem({ pool, entries, lastAsked, question, now, rand = Math.random }) {
+    if (!pool.length) return null;
+    const asked = p => lastAsked.get(keyOf(p)) ?? -Infinity;
+    const spaced = pool.filter(p => question - asked(p) > MIN_GAP);
+    if (!spaced.length) return pool.reduce((x, y) => asked(y) < asked(x) ? y : x);
+
+    const entry = p => readEntry(entries[keyOf(p)]);
+    const unseen = spaced.filter(p => !entry(p));
+    const seen = shuffle(spaced.filter(p => entry(p)), rand)
+      .sort((x, y) => entry(x).due - entry(y).due || entry(x).box - entry(y).box);
+    if (seen.length && entry(seen[0]).due <= now) return seen[0];
+    if (unseen.length) return unseen[Math.floor(rand() * unseen.length)];
+    return seen[0];
   }
 
   // Texts for showing the boxes.
@@ -103,6 +88,6 @@
   Object.assign(exports, {
     readEntry, writeEntry, answer,
     BOXES, MAX_STREAK, keyOf, boxOf, groupBoxes, migrateOldBoxes,
-    pickBox, pickProblem, boxName, countText, boxSummary, itemNote
+    pickProblem, boxName, countText, boxSummary, itemNote
   });
 })(typeof module !== "undefined" ? module.exports : (window.Leitner = {}));
