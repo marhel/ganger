@@ -747,16 +747,20 @@
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-  function newProblem() {
-    if (!pool.length) return null;
-    // Nothing due and nothing new: practise ahead, but say so.
-    const now = Date.now();
+  // Nothing due and nothing new: practice goes on ahead of time, but say so.
+  function showRested(now) {
     const until = Leitner.restingUntil(pool, entries, now);
     const rested = document.getElementById("rested");
     rested.hidden = until === null;
     if (until !== null) {
       rested.textContent = `Allt är övat för nu. Nästa uppgift är dags ${Leitner.untilText(until - now)}.`;
     }
+  }
+
+  function newProblem() {
+    if (!pool.length) return null;
+    const now = Date.now();
+    showRested(now);
     const p = pickProblem(now);
     lastAsked.set(keyOf(p), askCounter++);
     roundBoxes = new Set([boxOf(p)]);
