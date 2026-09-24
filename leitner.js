@@ -12,7 +12,7 @@
   // has no entry and lives in box 0.
   const readEntry = v => v === undefined ? null : Array.isArray(v) ? { box: v[0], due: v[1] } : { box: v, due: 0 };
   const writeEntry = ({ box, due }) => [box, due];
-  const boxOf = (streaks, p) => readEntry(streaks[keyOf(p)])?.box ?? 0;
+  const boxOf = (entries, p) => readEntry(entries[keyOf(p)])?.box ?? 0;
 
   // How long until a problem in each box is due again.
   const MIN = 60 * 1000, DAY = 24 * 60 * MIN;
@@ -27,17 +27,17 @@
   }
 
   // The problems of the pool in each of the six boxes (some may be empty).
-  function groupBoxes(pool, streaks) {
+  function groupBoxes(pool, entries) {
     const groups = Array.from({ length: BOXES }, () => []);
-    for (const p of pool) groups[boxOf(streaks, p)].push(p);
+    for (const p of pool) groups[boxOf(entries, p)].push(p);
     return groups;
   }
 
   // Earlier versions stored box numbers as 1000 + correct in a row.
   function migrateOldBoxes(old) {
-    const streaks = {};
-    for (const k in old) streaks[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
-    return streaks;
+    const entries = {};
+    for (const k in old) entries[k] = Math.max(0, Math.min(MAX_STREAK, (old[k] | 0) - 1000));
+    return entries;
   }
 
   // counts[i] is the number of problems that can be asked from box i,
@@ -70,10 +70,10 @@
   // when both exist); among the answered ones, the problem asked longest ago
   // (lastAsked: key -> question number) wins. The problem just asked is
   // skipped when there is any other.
-  function pickProblem({ pool, streaks, lastAsked, last, n, reviewEvery, rand = Math.random }) {
+  function pickProblem({ pool, entries, lastAsked, last, n, reviewEvery, rand = Math.random }) {
     if (!pool.length) return null;
-    const groups = groupBoxes(pool, streaks);
-    const isUnseen = p => streaks[keyOf(p)] === undefined;
+    const groups = groupBoxes(pool, entries);
+    const isUnseen = p => entries[keyOf(p)] === undefined;
     const notLast = p => !(last && keyOf(p) === keyOf(last));
     // Non-empty boxes, skipping a box whose only problem is the one just asked.
     let counts = groups.map(g => g.filter(notLast).length);
@@ -102,7 +102,7 @@
 
   Object.assign(exports, {
     readEntry, writeEntry, answer,
-    BOXES, MAX_STREAK, keyOf, groupBoxes, migrateOldBoxes,
+    BOXES, MAX_STREAK, keyOf, boxOf, groupBoxes, migrateOldBoxes,
     pickBox, pickProblem, boxName, countText, boxSummary, itemNote
   });
 })(typeof module !== "undefined" ? module.exports : (window.Leitner = {}));

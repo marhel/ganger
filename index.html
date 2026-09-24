@@ -390,28 +390,28 @@
   let askCounter = 0;
   const { boxName, countText } = Leitner;
 
-  const STREAK_KEY = "gangertabell-irad";
-  let streaks = {};
+  const ENTRY_KEY = "gangertabell-irad";
+  let entries = {};
   try {
-    const stored = localStorage.getItem(STREAK_KEY);
+    const stored = localStorage.getItem(ENTRY_KEY);
     if (stored) {
-      streaks = JSON.parse(stored) || {};
+      entries = JSON.parse(stored) || {};
     } else {
       // Migrate from the earlier box numbers (1000 + correct in a row).
       const old = JSON.parse(localStorage.getItem("gangertabell-lador") || "{}") || {};
-      streaks = Leitner.migrateOldBoxes(old);
-      localStorage.setItem(STREAK_KEY, JSON.stringify(streaks));
+      entries = Leitner.migrateOldBoxes(old);
+      localStorage.setItem(ENTRY_KEY, JSON.stringify(entries));
       localStorage.removeItem("gangertabell-lador");
     }
-  } catch { streaks = {}; }
-  const isUnseen = p => streaks[keyOf(p)] === undefined;
-  const boxOf = p => Leitner.readEntry(streaks[keyOf(p)])?.box ?? 0;   // box index 0..5
+  } catch { entries = {}; }
+  const isUnseen = p => entries[keyOf(p)] === undefined;
+  const boxOf = p => Leitner.boxOf(entries, p);   // box index 0..5
   function saveBoxes() {
-    try { localStorage.setItem(STREAK_KEY, JSON.stringify(streaks)); } catch {}
+    try { localStorage.setItem(ENTRY_KEY, JSON.stringify(entries)); } catch {}
   }
 
   // The selected problems in each of the six boxes (some may be empty).
-  const groupBoxes = () => Leitner.groupBoxes(pool, streaks);
+  const groupBoxes = () => Leitner.groupBoxes(pool, entries);
 
   function renderBoxes() {
     const el = document.getElementById("boxes");
@@ -465,8 +465,8 @@
   dlg.addEventListener("click", e => { if (e.target === dlg) closeBox(); });
 
   function recordResult(p, correct) {
-    const entry = Leitner.readEntry(streaks[keyOf(p)]);
-    streaks[keyOf(p)] = Leitner.writeEntry(Leitner.answer(entry, correct, Date.now()));
+    const entry = Leitner.readEntry(entries[keyOf(p)]);
+    entries[keyOf(p)] = Leitner.writeEntry(Leitner.answer(entry, correct, Date.now()));
     roundBoxes = new Set([boxOf(p)]);
     saveBoxes();
     renderBoxes();
@@ -475,7 +475,7 @@
   // Each question first picks a box: the lowest non-empty one, except every
   // N-th question (a setting), which reviews a higher box. See leitner.js.
   const pickProblem = () => Leitner.pickProblem({
-    pool, streaks, lastAsked, last,
+    pool, entries, lastAsked, last,
     n: askCounter + 1, reviewEvery: Number(els.reviewEvery.value)
   });
 
@@ -492,7 +492,7 @@
     clearTimeout(resetArmed);
     resetArmed = null;
     resetBtn.textContent = "Börja om";
-    streaks = {};
+    entries = {};
     lastAsked.clear();
     saveBoxes();
     roundBoxes = new Set();
