@@ -190,3 +190,19 @@ test("an answer is saved as [box, due], and such entries are read back", async (
     assert.ok(due >= before + 4 * 60e3 && due <= Date.now() + 6 * 60e3, String(due - before));
   } finally { dom.window.close(); }
 });
+
+test("when nothing is due or new, it says so, and practising ahead keeps the box", async () => {
+  const soon = Date.now() + 10 * 60e3;
+  const { dom, doc } = await loadPage({
+    "gangertabell-urval": { tables: [2], factors: [3, 4], inverted: false },
+    "gangertabell-irad": { "2x3": [2, soon], "2x4": [2, soon + 60e3] }
+  });
+  try {
+    const rested = doc.getElementById("rested");
+    assert.equal(rested.hidden, true);
+    await answerOnce(doc, dom.window, c => c);
+    assert.equal(rested.hidden, false);
+    assert.equal(rested.textContent, "Allt är övat för nu. Nästa uppgift är dags om 10 minuter.");
+    assert.deepEqual(boxCounts(doc), [0, 0, 2, 0, 0, 0]);
+  } finally { dom.window.close(); }
+});

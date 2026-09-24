@@ -20,9 +20,12 @@
 
   // A correct answer moves the problem up a box (at most 5), a wrong one to
   // box 0. It is then due after its box's interval, spread by ±20 % so that
-  // problems answered together don't all come back together.
+  // problems answered together don't all come back together. A correct
+  // answer before the problem is due (practising ahead) keeps its box, so
+  // that practising ahead doesn't rush problems up the boxes.
   function answer(entry, correct, now, rand = Math.random) {
-    const box = correct ? Math.min(MAX_STREAK, (entry?.box ?? 0) + 1) : 0;
+    const early = entry && entry.due > now;
+    const box = !correct ? 0 : early ? entry.box : Math.min(MAX_STREAK, (entry?.box ?? 0) + 1);
     return { box, due: now + Math.round(INTERVALS[box] * (0.8 + 0.4 * rand())) };
   }
 
@@ -74,6 +77,18 @@
     return seen[0];
   }
 
+  // When nothing in the pool is due or new: the time the first problem is
+  // due. Else null.
+  function restingUntil(pool, entries, now) {
+    let first = Infinity;
+    for (const p of pool) {
+      const e = readEntry(entries[keyOf(p)]);
+      if (!e || e.due <= now) return null;
+      first = Math.min(first, e.due);
+    }
+    return pool.length ? first : null;
+  }
+
   // Texts for showing the boxes.
   const boxName = i => i === MAX_STREAK ? `${i}+` : `${i}`;   // top box is "5+"
   const countText = n => `${n} ${n === 1 ? "uppgift" : "uppgifter"}`;
@@ -83,9 +98,18 @@
       : !n ? "" : unseen === n ? "alla nya" : unseen ? "nya eller fel senast" : "fel senast";
     return countText(n) + (what ? `, ${what}.` : ".");
   }
+  // "om 12 minuter", rounded up to whole minutes, hours or days.
+  function untilText(ms) {
+    const HOUR = 60 * MIN;
+    const unit = (n, one, many) => `om ${n} ${n === 1 ? one : many}`;
+    if (Math.ceil(ms / MIN) < 60) return unit(Math.max(1, Math.ceil(ms / MIN)), "minut", "minuter");
+    if (Math.ceil(ms / HOUR) < 24) return unit(Math.ceil(ms / HOUR), "timme", "timmar");
+    return unit(Math.ceil(ms / DAY), "dygn", "dygn");
+  }
   const itemNote = (i, unseen) => unseen ? "ny" : i === 0 ? "fel senast" : "";
 
   Object.assign(exports, {
+    restingUntil, untilText,
     readEntry, writeEntry, answer,
     BOXES, MAX_STREAK, keyOf, boxOf, groupBoxes, migrateOldBoxes,
     pickProblem, boxName, countText, boxSummary, itemNote

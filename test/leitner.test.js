@@ -147,3 +147,39 @@ test("groupBoxes reads both stored forms", () => {
   const groups = groupBoxes(pool, { "1x1": 2, "1x2": [4, 1234] });
   assert.deepEqual(groups.map(g => g.length), [1, 0, 1, 0, 1, 0]);
 });
+
+test("a correct answer before the problem is due keeps its box and waits again", () => {
+  const now = 1e12, mid = seq(0.5);
+  assert.deepEqual(answer({ box: 3, due: now + 1000 }, true, now, mid), { box: 3, due: now + DAY });
+  assert.deepEqual(answer({ box: 0, due: now + 1000 }, true, now, mid), { box: 0, due: now + MIN });
+});
+
+test("a wrong answer before the problem is due still sends it to box 0", () => {
+  const now = 1e12, mid = seq(0.5);
+  assert.deepEqual(answer({ box: 3, due: now + 1000 }, false, now, mid), { box: 0, due: now + MIN });
+});
+
+const { restingUntil, untilText } = require("../leitner.js");
+
+test("resting until the first due time when nothing is due and nothing new", () => {
+  const pool = [[1, 1], [1, 2]];
+  assert.equal(restingUntil(pool, { "1x1": [2, 5000], "1x2": [3, 3000] }, 1000), 3000);
+});
+
+test("not resting while something is due or new", () => {
+  const pool = [[1, 1], [1, 2]];
+  assert.equal(restingUntil(pool, { "1x1": [2, 5000], "1x2": [3, 1000] }, 1000), null);
+  assert.equal(restingUntil(pool, { "1x1": [2, 5000] }, 1000), null);
+  assert.equal(restingUntil([], {}, 1000), null);
+});
+
+test("untilText rounds up to minutes, hours or days", () => {
+  assert.equal(untilText(10 * 1000), "om 1 minut");
+  assert.equal(untilText(11.5 * MIN), "om 12 minuter");
+  assert.equal(untilText(59 * MIN), "om 59 minuter");
+  assert.equal(untilText(60 * MIN), "om 1 timme");
+  assert.equal(untilText(2.2 * 60 * MIN), "om 3 timmar");
+  assert.equal(untilText(23.5 * 60 * MIN), "om 1 dygn");
+  assert.equal(untilText(DAY + 1), "om 2 dygn");
+  assert.equal(untilText(DAY), "om 1 dygn");
+});
